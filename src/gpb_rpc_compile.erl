@@ -1,5 +1,5 @@
 -module(gpb_rpc_compile).
--include("gpb.hrl").
+-include_lib("gpb/include/gpb.hrl").
 %% API
 -export([ file/2 ]).
 
