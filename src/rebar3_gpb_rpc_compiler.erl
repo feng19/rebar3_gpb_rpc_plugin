@@ -8,6 +8,7 @@
 -define(DEFAULT_OUT_HRL_DIR, "include").
 -define(DEFAULT_MODULE_SUFFIX, "").
 -define(DEFAULT_HEADER_MSG, "msg").
+-define(DEFAULT_MSG_PREFIX, "msg_").
 
 %% ===================================================================
 %% Public API
@@ -23,6 +24,7 @@ compile(AppInfo) ->
     %% check if non-recursive
     Recursive = proplists:get_value(recursive, GpbRpcOpts0, true),
     HeaderMsg = proplists:get_value(h_msg, GpbRpcOpts0, ?DEFAULT_HEADER_MSG),
+    MsgPrefix = proplists:get_value(msg_prefix, GpbRpcOpts0, ?DEFAULT_MSG_PREFIX),
     ModuleNameSuffix = proplists:get_value(module_name_suffix, GpbOpts,
                                            ?DEFAULT_MODULE_SUFFIX),
     SourceDirs = proplists:get_all_values(i, GpbOpts),
@@ -42,9 +44,10 @@ compile(AppInfo) ->
     %% set the full path for the output directories
     %% remove the plugin specific options since gpb will not understand them
     GpbRpcOpts = module_name_suffix_opt(ModuleNameSuffix,
-                header_msg_opt(HeaderMsg,
-                    target_erl_opt(TargetErlDir,
-                        target_hrl_opt(TargetHrlDir, GpbRpcOpts0)))),
+                msg_prefix_opt(MsgPrefix,
+                    header_msg_opt(HeaderMsg,
+                        target_erl_opt(TargetErlDir,
+                            target_hrl_opt(TargetHrlDir, GpbRpcOpts0))))),
     lists:foreach(fun(SourceDir) ->
                     ok = rebar_base_compiler:run(Opts, [],
                                  filename:join(AppDir, SourceDir), ".proto",
@@ -87,7 +90,7 @@ clean(AppInfo) ->
 compile(Source, _Target, GpbRpcOpts, _Config) ->
     rebar_api:debug("compiling ~p", [Source]),
     rebar_api:debug("opts: ~p", [GpbRpcOpts]),
-    case gpb_rpc_compile:file(filename:basename(Source), GpbRpcOpts) of
+    case gpb_rpc_compile:file(Source, GpbRpcOpts) of
         ok ->
             ok;
         {error, Reason} ->
@@ -117,6 +120,10 @@ target_hrl_opt(Dir, Opts) ->
 -spec header_msg_opt(string(), proplists:proplist()) -> proplists:proplist().
 header_msg_opt(HeaderMsg, Opts) ->
     lists:keystore(h_msg, 1, Opts, {h_msg, HeaderMsg}).
+
+-spec msg_prefix_opt(string(), proplists:proplist()) -> proplists:proplist().
+msg_prefix_opt(MsgPrefix, Opts) ->
+    lists:keystore(msg_prefix, 1, Opts, {msg_prefix, MsgPrefix}).
 
 -spec module_name_suffix_opt(string(), proplists:proplists()) -> proplists:proplist().
 module_name_suffix_opt(ModuleNameSuffix, Opts) ->

@@ -33,6 +33,7 @@ Configure gpb options (example below), full list can consulted on [gpb's project
 
     {gpb_rpc_opts, [
         {h_msg, "msg"},
+        {msg_prefix, "msg_"},
         {o_erl, "src/rpc_msg"},
         {o_hrl, "include/rpc_msg"}
     ]}.

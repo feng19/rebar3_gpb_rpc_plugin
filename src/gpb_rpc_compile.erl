@@ -5,7 +5,8 @@
 
 file(ProtoFile, GpbRpcOpts) ->
     case file:read_file(ProtoFile) of
-        {ok, String} ->
+        {ok, Binary} ->
+            String = binary_to_list(Binary),
             Msg = filename:rootname(filename:basename(ProtoFile)),
             case parse_lines(Msg, String) of
                 {ok, Result}->
@@ -20,11 +21,12 @@ file(Msg, GpbRpcOpts, Result) ->
     TargetHrlDir = proplists:get_value(o_hrl, GpbRpcOpts),
     ModuleNameSuffix = proplists:get_value(module_name_suffix, GpbRpcOpts),
     HeaderMsg = proplists:get_value(h_msg, GpbRpcOpts),
+    PrefixLen = length(proplists:get_value(msg_prefix, GpbRpcOpts)),
 
     ErlTarget = filename:join([TargetErlDir, Msg ++ ".erl"]),
     HrlTarget = filename:join([TargetHrlDir, Msg ++ ".hrl"]),
 
-    gen_mod(Msg, ModuleNameSuffix, HeaderMsg, ErlTarget, Result),
+    gen_mod(Msg, ModuleNameSuffix, PrefixLen, HeaderMsg, ErlTarget, Result),
     gen_hrl(HrlTarget, Result),
     ok.
 
@@ -44,11 +46,11 @@ parse_lines(FName, String) ->
             erlang:error({scan_error, FName, Reason})
     end.
 
-gen_mod(Msg, ModuleNameSuffix, HeaderMsg, Target, Result) ->
+gen_mod(Msg, ModuleNameSuffix, PrefixLen, HeaderMsg, Target, Result) ->
     Service = list_to_atom(Msg++"_service"),
     case lists:keyfind({service, Service}, 1, Result) of
         {_, RpcList} ->
-            {CallbackList, Body} = gen_rpc_list(Msg, ModuleNameSuffix, HeaderMsg, RpcList),
+            {CallbackList, Body} = gen_rpc_list(Msg, ModuleNameSuffix, PrefixLen, HeaderMsg, RpcList),
             IoData = [
                 gen_header(Msg, ModuleNameSuffix),
                 CallbackList, "\n",
@@ -85,7 +87,7 @@ gen_header(Msg, ModuleNameSuffix) ->
 
 gen_handle_msg(Msg, ModuleNameSuffix) ->
 "handle_msg(Binary, State) ->
-        #"++ Msg ++"{func = Func, pb_msg = Request} = "++ Msg ++ModuleNameSuffix++":decode_msg(Binary, "++ Msg ++"),
+    #"++ Msg ++"{func = Func, pb_msg = Request} = "++ Msg ++ModuleNameSuffix++":decode_msg(Binary, "++ Msg ++"),
     case handle_msg(Func, Request, State) of
         {reply_msg, RespMsg} ->
             {reply, encode_msg(Func, RespMsg)};
@@ -98,8 +100,8 @@ gen_handle_msg(Msg, ModuleNameSuffix) ->
         Reply -> Reply
     end.\n\n".
 
-gen_rpc_list(Msg, ModuleNameSuffix, HeaderMsg, RpcList) ->
-    [$m,$s,$g,$_|Mod] = Msg,
+gen_rpc_list(Msg, ModuleNameSuffix, PrefixLen, HeaderMsg, RpcList) ->
+    Mod = string:substr(Msg, PrefixLen+1),
     [CallbackList|BodyList] =
         lists:foldl(
             fun(Rpc, Acc) ->
@@ -111,7 +113,7 @@ gen_rpc_list(Msg, ModuleNameSuffix, HeaderMsg, RpcList) ->
         [ [lists:reverse(tl(lists:reverse(Body))),".\n\n"] || Body <- BodyList ]
     }.
 
-gen_rpc(Msg, ModuleNameSuffix, HeaderMsg, Mod, #rpc{name = Func0, input = Input0, output = Output0}) ->
+gen_rpc(Msg, ModuleNameSuffix, HeaderMsg, Mod, {Func0, {[Input0], _}, {[Output0], _}, _}) ->
     Func = atom_to_list(Func0),
     Input = atom_to_list(Input0),
     Output = atom_to_list(Output0),
@@ -133,12 +135,12 @@ gen_handle_msg(Func, Mod, Msg, ModuleNameSuffix, Input) ->
 
 gen_decode_input_msg(Msg, ModuleNameSuffix) ->
 "decode_input_msg(Binary) ->
-        #"++Msg++"{func = Func, pb_msg = Request} = "++Msg++ModuleNameSuffix++":decode_msg(Binary, "++Msg++"),
+    #"++Msg++"{func = Func, pb_msg = Request} = "++Msg++ModuleNameSuffix++":decode_msg(Binary, "++Msg++"),
     decode_input(Func, Request).".
 
 gen_decode_output_msg(Msg, ModuleNameSuffix) ->
 "decode_output_msg(Binary) ->
-        #"++Msg++"{func = Func, pb_msg = Request} = "++Msg++ModuleNameSuffix++":decode_msg(Binary, "++Msg++"),
+    #"++Msg++"{func = Func, pb_msg = Request} = "++Msg++ModuleNameSuffix++":decode_msg(Binary, "++Msg++"),
     decode_output(Func, Request).".
 
 gen_decode_input(Func, Mod, Msg, ModuleNameSuffix, Input) ->
@@ -151,8 +153,8 @@ gen_decode_output(Func, Msg, ModuleNameSuffix, Output) ->
 
 gen_encode_msg(Msg, ModuleNameSuffix, HeaderMsg) ->
 "encode_msg(Func, RespMsg) ->
-        RespBinary = encode_func_msg(Func, RespMsg),
-        "++HeaderMsg++":encode_msg(?MODULE, RespBinary).
-    encode_func_msg(Func, RespMsg) ->
-        Binary = "++Msg++ModuleNameSuffix++":encode_msg(RespMsg),
+    RespBinary = encode_func_msg(Func, RespMsg),
+    "++HeaderMsg++":encode_msg(?MODULE, RespBinary).
+encode_func_msg(Func, RespMsg) ->
+    Binary = "++Msg++ModuleNameSuffix++":encode_msg(RespMsg),
     "++Msg++ModuleNameSuffix++":encode_msg(#"++Msg++"{func = Func, pb_msg = Binary}).".
