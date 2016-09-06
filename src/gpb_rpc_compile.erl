@@ -4,23 +4,29 @@
 -export([ file/2 ]).
 
 file(ProtoFile, GpbRpcOpts) ->
-    String = binary_to_list(element(2, file:read_file(ProtoFile))),
-    Msg = filename:rootname(filename:basename(ProtoFile)),
-    case parse_lines(Msg, String) of
-        {ok, Result}->
-            TargetErlDir = proplists:get_value(o_erl, GpbRpcOpts),
-            TargetHrlDir = proplists:get_value(o_hrl, GpbRpcOpts),
-            ModuleNameSuffix = proplists:get_value(module_name_suffix, GpbRpcOpts),
-            HeaderMsg = proplists:get_value(h_msg, GpbRpcOpts),
-
-            ErlTarget = filename:join([TargetErlDir, Msg ++ ".erl"]),
-            HrlTarget = filename:join([TargetHrlDir, Msg ++ ".hrl"]),
-
-            gen_mod(Msg, ModuleNameSuffix, HeaderMsg, ErlTarget, Result),
-            gen_hrl(HrlTarget, Result),
-            ok;
+    case file:read_file(ProtoFile) of
+        {ok, String} ->
+            Msg = filename:rootname(filename:basename(ProtoFile)),
+            case parse_lines(Msg, String) of
+                {ok, Result}->
+                    file(Msg, GpbRpcOpts, Result);
+                Err -> Err
+            end;
         Err -> Err
     end.
+
+file(Msg, GpbRpcOpts, Result) ->
+    TargetErlDir = proplists:get_value(o_erl, GpbRpcOpts),
+    TargetHrlDir = proplists:get_value(o_hrl, GpbRpcOpts),
+    ModuleNameSuffix = proplists:get_value(module_name_suffix, GpbRpcOpts),
+    HeaderMsg = proplists:get_value(h_msg, GpbRpcOpts),
+
+    ErlTarget = filename:join([TargetErlDir, Msg ++ ".erl"]),
+    HrlTarget = filename:join([TargetHrlDir, Msg ++ ".hrl"]),
+
+    gen_mod(Msg, ModuleNameSuffix, HeaderMsg, ErlTarget, Result),
+    gen_hrl(HrlTarget, Result),
+    ok.
 
 parse_lines(FName, String) ->
     case gpb_scan:string(String) of
