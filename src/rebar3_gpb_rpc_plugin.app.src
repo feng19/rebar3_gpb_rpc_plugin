@@ -1,0 +1,16 @@
+{application, rebar3_gpb_rpc_plugin, [
+        {description, "A rebar3 gpb rpc plugin for compiling .proto files"},
+        {vsn, "0.1.0"},
+        {registered, []},
+        {applications,
+            [
+                kernel,
+                stdlib,
+                gpb
+            ]},
+        {env,[]},
+        {modules, []},
+        {maintainers, ["feng19"]},
+        {licenses, ["MIT"]},
+        {links, [{"Github", "https://github.com/feng19/rebar3_gpb_rpc_plugin"}]}
+    ]}.
