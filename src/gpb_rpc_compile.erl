@@ -62,14 +62,15 @@ gen_mod(Msg, ModuleNameSuffix, PrefixLen, HeaderMsg, Target, Result) ->
         false -> none
     end.
 
-gen_hrl(Msg, Target, Result) ->
+gen_hrl(Msg0, Target, Result) ->
+    Msg = string:to_upper(Msg0),
     Body = [ gen_macros(Prefix, EnumList) || {{enum, Prefix}, EnumList} <- Result],
     IoData = [gen_hrl_header(Msg), Body, gen_hrl_footer()],
     file:write_file(Target, IoData).
 
 gen_hrl_header(Msg) ->
-"-ifndef("++Msg++").
--define("++Msg++", true).\n\n".
+"-ifndef("++Msg++"_H).
+-define("++Msg++"_H, true).\n".
 
 gen_macros(Prefix, EnumList) ->
     [gen_macro(Prefix, Key, Value)||{Key, Value} <- EnumList].
@@ -78,7 +79,7 @@ gen_macro(Prefix, Key, Value) ->
     io_lib:format("-define(~ts, ~p).%~p~n", [Macro, Key, Value]).
 
 gen_hrl_footer() ->
-    "\n\n-endif.".
+    "\n-endif.".
 
 gen_header(Msg, ModuleNameSuffix) ->
 "-module("++ Msg ++").
