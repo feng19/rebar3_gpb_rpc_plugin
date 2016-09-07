@@ -27,7 +27,7 @@ file(Msg, GpbRpcOpts, Result) ->
     HrlTarget = filename:join([TargetHrlDir, Msg ++ ".hrl"]),
 
     gen_mod(Msg, ModuleNameSuffix, PrefixLen, HeaderMsg, ErlTarget, Result),
-    gen_hrl(HrlTarget, Result),
+    gen_hrl(Msg, HrlTarget, Result),
     ok.
 
 parse_lines(FName, String) ->
@@ -62,15 +62,23 @@ gen_mod(Msg, ModuleNameSuffix, PrefixLen, HeaderMsg, Target, Result) ->
         false -> none
     end.
 
-gen_hrl(Target, Result) ->
-    IoData = [ gen_macros(Prefix, EnumList) || {{enum, Prefix}, EnumList} <- Result],
+gen_hrl(Msg, Target, Result) ->
+    Body = [ gen_macros(Prefix, EnumList) || {{enum, Prefix}, EnumList} <- Result],
+    IoData = [gen_hrl_header(Msg), Body, gen_hrl_footer()],
     file:write_file(Target, IoData).
+
+gen_hrl_header(Msg) ->
+"-ifndef("++Msg++"_pb).
+-define("++Msg++"_pb, true).\n\n".
 
 gen_macros(Prefix, EnumList) ->
     [gen_macro(Prefix, Key, Value)||{Key, Value} <- EnumList].
 gen_macro(Prefix, Key, Value) ->
     Macro = string:to_upper(atom_to_list(Prefix))++"_"++string:to_upper(atom_to_list(Key)),
     io_lib:format("-define(~ts, ~p).%~p~n", [Macro, Key, Value]).
+
+gen_hrl_footer() ->
+    "\n\n-endif.".
 
 gen_header(Msg, ModuleNameSuffix) ->
 "-module("++ Msg ++").
@@ -85,9 +93,9 @@ gen_header(Msg, ModuleNameSuffix) ->
     encode_msg/2
 ]).\n\n".
 
-gen_handle_msg(Msg, ModuleNameSuffix) ->
+gen_handle_msg(Msg, ModuleNameSuffix) ->% todo maps
 "handle_msg(Binary, State) ->
-    #"++ Msg ++"{func = Func, pb_msg = Request} = "++ Msg ++ModuleNameSuffix++":decode_msg(Binary, "++ Msg ++"),
+    #"++Msg++"{func = Func, pb_msg = Request} = "++Msg++ModuleNameSuffix++":decode_msg(Binary, "++Msg++"),
     case handle_msg(Func, Request, State) of
         {reply_msg, RespMsg} ->
             {reply, encode_msg(Func, RespMsg)};
@@ -102,7 +110,7 @@ gen_handle_msg(Msg, ModuleNameSuffix) ->
 
 gen_rpc_list(Msg, ModuleNameSuffix, PrefixLen, HeaderMsg, RpcList) ->
     Mod = string:substr(Msg, PrefixLen+1),
-    [CallbackList|BodyList] =
+    [CallbackList, HandleMsg, DecodeInputMsg, DecodeOutputMsg, DecodeInput, DecodeOutput] =
         lists:foldl(
             fun(Rpc, Acc) ->
                 GenList = gen_rpc(Msg, ModuleNameSuffix, HeaderMsg, Mod, Rpc),
@@ -110,7 +118,14 @@ gen_rpc_list(Msg, ModuleNameSuffix, PrefixLen, HeaderMsg, RpcList) ->
             end, lists:duplicate(6, []), RpcList),
     {
         CallbackList,
-        [ [lists:reverse(tl(lists:reverse(Body))),".\n\n"] || Body <- BodyList ]
+        HandleMsg,
+        gen_handle_msg_last(),
+        DecodeInputMsg,
+        DecodeOutputMsg,
+        DecodeInput,
+        gen_decode_input_last(),
+        DecodeOutput,
+        gen_decode_output_last()
     }.
 
 gen_rpc(Msg, ModuleNameSuffix, HeaderMsg, Mod, {Func0, {[Input0], _}, {[Output0], _}, _}) ->
@@ -132,6 +147,9 @@ gen_callback(Func, HeaderMsg) ->
 gen_handle_msg(Func, Mod, Msg, ModuleNameSuffix, Input) ->
 "handle_msg("++Func++", Binary, State) ->
     mod_"++Mod++":"++Func++"("++Msg++ModuleNameSuffix++":decode_msg(Binary, "++Input++"), State);".
+gen_handle_msg_last() ->
+"handle_msg(Func, _Binary, _State) ->
+    {error, {not_defined_func, Func}}.".
 
 gen_decode_input_msg(Msg, ModuleNameSuffix) ->
 "decode_input_msg(Binary) ->
@@ -146,10 +164,16 @@ gen_decode_output_msg(Msg, ModuleNameSuffix) ->
 gen_decode_input(Func, Mod, Msg, ModuleNameSuffix, Input) ->
 "decode_input("++Func++", Binary) ->
     {mod_"++Mod++", "++Func++", "++Msg++ModuleNameSuffix++":decode_msg(Binary, "++Input++")};".
+gen_decode_input_last() ->
+"decode_input(Func, _Binary) ->
+    {error, {not_defined_func, Func}}.".
 
 gen_decode_output(Func, Msg, ModuleNameSuffix, Output) ->
 "decode_output("++Func++", Binary) ->
     "++Msg++ModuleNameSuffix++":decode_msg(Binary, "++Output++");".
+gen_decode_output_last() ->
+"decode_output(Func, _Binary) ->
+    {error, {not_defined_func, Func}}.".
 
 gen_encode_msg(Msg, ModuleNameSuffix, HeaderMsg) ->
 "encode_msg(Func, RespMsg) ->

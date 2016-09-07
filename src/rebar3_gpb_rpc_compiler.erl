@@ -4,8 +4,8 @@
          clean/1]).
 
 -define(DEFAULT_PROTO_DIR, "proto").
--define(DEFAULT_OUT_ERL_DIR, "src").
--define(DEFAULT_OUT_HRL_DIR, "include").
+-define(DEFAULT_OUT_ERL_DIR, "src/rpc").
+-define(DEFAULT_OUT_HRL_DIR, "include/rpc").
 -define(DEFAULT_MODULE_SUFFIX, "").
 -define(DEFAULT_HEADER_MSG, "msg").
 -define(DEFAULT_MSG_PREFIX, "msg_").
