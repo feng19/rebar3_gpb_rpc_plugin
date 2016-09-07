@@ -116,8 +116,8 @@ gen_rpc_list(Msg, ModuleNameSuffix, PrefixLen, HeaderMsg, RpcList) ->
                 GenList = gen_rpc(Msg, ModuleNameSuffix, HeaderMsg, Mod, Rpc),
                 lists:zipwith(fun(Gen, OldList) -> [Gen|OldList] end, Acc, GenList)
             end, lists:duplicate(6, []), RpcList),
-    {
-        CallbackList,
+    BodyList =
+    [
         HandleMsg,
         gen_handle_msg_last(),
         DecodeInputMsg,
@@ -126,7 +126,8 @@ gen_rpc_list(Msg, ModuleNameSuffix, PrefixLen, HeaderMsg, RpcList) ->
         gen_decode_input_last(),
         DecodeOutput,
         gen_decode_output_last()
-    }.
+    ],
+    {CallbackList,BodyList}.
 
 gen_rpc(Msg, ModuleNameSuffix, HeaderMsg, Mod, {Func0, {[Input0], _}, {[Output0], _}, _}) ->
     Func = atom_to_list(Func0),
