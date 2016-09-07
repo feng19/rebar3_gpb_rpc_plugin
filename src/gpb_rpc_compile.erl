@@ -68,8 +68,8 @@ gen_hrl(Msg, Target, Result) ->
     file:write_file(Target, IoData).
 
 gen_hrl_header(Msg) ->
-"-ifndef("++Msg++"_pb).
--define("++Msg++"_pb, true).\n\n".
+"-ifndef("++Msg++").
+-define("++Msg++", true).\n\n".
 
 gen_macros(Prefix, EnumList) ->
     [gen_macro(Prefix, Key, Value)||{Key, Value} <- EnumList].
@@ -147,39 +147,39 @@ gen_callback(Func, HeaderMsg) ->
 
 gen_handle_msg(Func, Mod, Msg, ModuleNameSuffix, Input) ->
 "handle_msg("++Func++", Binary, State) ->
-    mod_"++Mod++":"++Func++"("++Msg++ModuleNameSuffix++":decode_msg(Binary, "++Input++"), State);".
+    mod_"++Mod++":"++Func++"("++Msg++ModuleNameSuffix++":decode_msg(Binary, "++Input++"), State);\n".
 gen_handle_msg_last() ->
 "handle_msg(Func, _Binary, _State) ->
-    {error, {not_defined_func, Func}}.".
+    {error, {not_defined_func, Func}}.\n\n".
 
 gen_decode_input_msg(Msg, ModuleNameSuffix) ->
 "decode_input_msg(Binary) ->
     #"++Msg++"{func = Func, pb_msg = Request} = "++Msg++ModuleNameSuffix++":decode_msg(Binary, "++Msg++"),
-    decode_input(Func, Request).".
+    decode_input(Func, Request).\n\n".
 
 gen_decode_output_msg(Msg, ModuleNameSuffix) ->
 "decode_output_msg(Binary) ->
     #"++Msg++"{func = Func, pb_msg = Request} = "++Msg++ModuleNameSuffix++":decode_msg(Binary, "++Msg++"),
-    decode_output(Func, Request).".
+    decode_output(Func, Request).\n\n".
 
 gen_decode_input(Func, Mod, Msg, ModuleNameSuffix, Input) ->
 "decode_input("++Func++", Binary) ->
-    {mod_"++Mod++", "++Func++", "++Msg++ModuleNameSuffix++":decode_msg(Binary, "++Input++")};".
+    {mod_"++Mod++", "++Func++", "++Msg++ModuleNameSuffix++":decode_msg(Binary, "++Input++")};\n".
 gen_decode_input_last() ->
 "decode_input(Func, _Binary) ->
-    {error, {not_defined_func, Func}}.".
+    {error, {not_defined_func, Func}}.\n\n".
 
 gen_decode_output(Func, Msg, ModuleNameSuffix, Output) ->
 "decode_output("++Func++", Binary) ->
     "++Msg++ModuleNameSuffix++":decode_msg(Binary, "++Output++");".
 gen_decode_output_last() ->
 "decode_output(Func, _Binary) ->
-    {error, {not_defined_func, Func}}.".
+    {error, {not_defined_func, Func}}.\n\n".
 
 gen_encode_msg(Msg, ModuleNameSuffix, HeaderMsg) ->
 "encode_msg(Func, RespMsg) ->
     RespBinary = encode_func_msg(Func, RespMsg),
-    "++HeaderMsg++":encode_msg(?MODULE, RespBinary).
+    "++HeaderMsg++":encode_msg(?MODULE, RespBinary).\n
 encode_func_msg(Func, RespMsg) ->
     Binary = "++Msg++ModuleNameSuffix++":encode_msg(RespMsg),
     "++Msg++ModuleNameSuffix++":encode_msg(#"++Msg++"{func = Func, pb_msg = Binary}).".
