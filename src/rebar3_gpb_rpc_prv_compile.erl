@@ -37,14 +37,15 @@ init(State) ->
 
 -spec do(rebar_state:t()) -> {ok, rebar_state:t()}.
 do(State) ->
-    Apps = case rebar_state:current_app(State) of
-            undefined ->
-                rebar_state:project_apps(State);
-            AppInfo ->
-                [AppInfo]
-           end,
-    lists:foreach(fun rebar3_gpb_rpc_compiler:compile/1, Apps),
-    {ok, State}.
+    case rebar_state:current_app(State) of
+        undefined ->
+            Apps = rebar_state:project_apps(State),
+            NewApps = lists:map(fun rebar3_gpb_rpc_compiler:compile/1, Apps),
+            {ok, rebar_state:project_apps(State, NewApps)};
+        AppInfo ->
+            CurrentApp = rebar3_gpb_rpc_compiler:compile(AppInfo),
+            {ok, rebar_state:current_app(State, CurrentApp)}
+    end.
 
 -spec format_error(any()) ->  iolist().
 format_error(Reason) ->

@@ -57,7 +57,8 @@ compile(AppInfo) ->
                                  end,
                                  [check_last_mod, {recursive, Recursive}])
                   end, SourceDirs),
-    ok.
+
+    update_erl_first_files(TargetErlDir, AppInfo).
 
 -spec clean(rebar_app_info:t()) -> ok.
 clean(AppInfo) ->
@@ -135,3 +136,17 @@ find_proto_files(AppDir, GpbOpts) ->
                                    ".*\.proto\$")
               end, [], proplists:get_all_values(i, GpbOpts)).
 
+update_erl_first_files(TargetErlDir, AppInfo) ->
+    case filelib:wildcard(filename:join(TargetErlDir, "*.erl")) of
+        [] -> AppInfo;
+        ErlFirstFiles ->
+            OldOpts = rebar_app_info:opts(AppInfo),
+            NewOpts =
+                case dict:find(erl_first_files, OldOpts) of
+                    {ok, OldErlFirstFiles} ->
+                        dict:store(erl_first_files, OldErlFirstFiles++ErlFirstFiles, OldOpts);
+                    error ->
+                        dict:store(erl_first_files, ErlFirstFiles, OldOpts)
+                end,
+            rebar_app_info:opts(AppInfo, NewOpts)
+    end.
