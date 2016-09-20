@@ -9,6 +9,7 @@
 -define(DEFAULT_MODULE_SUFFIX, "").
 -define(DEFAULT_HEADER_MSG, "msg").
 -define(DEFAULT_MSG_PREFIX, "msg_").
+-define(DEFAULT_MOD_PREFIX, "mod_").
 
 %% ===================================================================
 %% Public API
@@ -25,6 +26,7 @@ compile(AppInfo) ->
     Recursive = proplists:get_value(recursive, GpbRpcOpts0, true),
     HeaderMsg = proplists:get_value(h_msg, GpbRpcOpts0, ?DEFAULT_HEADER_MSG),
     MsgPrefix = proplists:get_value(msg_prefix, GpbRpcOpts0, ?DEFAULT_MSG_PREFIX),
+    ModPrefix = proplists:get_value(mod_prefix, GpbRpcOpts0, ?DEFAULT_MOD_PREFIX),
     ModuleNameSuffix = proplists:get_value(module_name_suffix, GpbOpts,
                                            ?DEFAULT_MODULE_SUFFIX),
     SourceDirs = proplists:get_all_values(i, GpbOpts),
@@ -45,9 +47,10 @@ compile(AppInfo) ->
     %% remove the plugin specific options since gpb will not understand them
     GpbRpcOpts = module_name_suffix_opt(ModuleNameSuffix,
                 msg_prefix_opt(MsgPrefix,
-                    header_msg_opt(HeaderMsg,
-                        target_erl_opt(TargetErlDir,
-                            target_hrl_opt(TargetHrlDir, GpbRpcOpts0))))),
+                    mod_prefix_opt(ModPrefix,
+                        header_msg_opt(HeaderMsg,
+                            target_erl_opt(TargetErlDir,
+                                target_hrl_opt(TargetHrlDir, GpbRpcOpts0)))))),
     lists:foreach(fun(SourceDir) ->
                     ok = rebar_base_compiler:run(Opts, [],
                                  filename:join(AppDir, SourceDir), ".proto",
@@ -58,7 +61,8 @@ compile(AppInfo) ->
                                  [check_last_mod, {recursive, Recursive}])
                   end, SourceDirs),
 
-    update_erl_first_files(TargetErlDir, AppInfo).
+    NewAppInfo = update_include_files(TargetHrlDir, AppInfo),
+    update_erl_first_files(TargetErlDir, NewAppInfo).
 
 -spec clean(rebar_app_info:t()) -> ok.
 clean(AppInfo) ->
@@ -126,6 +130,10 @@ header_msg_opt(HeaderMsg, Opts) ->
 msg_prefix_opt(MsgPrefix, Opts) ->
     lists:keystore(msg_prefix, 1, Opts, {msg_prefix, MsgPrefix}).
 
+-spec mod_prefix_opt(string(), proplists:proplist()) -> proplists:proplist().
+mod_prefix_opt(MsgPrefix, Opts) ->
+    lists:keystore(mod_prefix, 1, Opts, {mod_prefix, MsgPrefix}).
+
 -spec module_name_suffix_opt(string(), proplists:proplists()) -> proplists:proplist().
 module_name_suffix_opt(ModuleNameSuffix, Opts) ->
     lists:keystore(module_name_suffix, 1, Opts, {module_name_suffix, ModuleNameSuffix}).
@@ -135,6 +143,18 @@ find_proto_files(AppDir, GpbOpts) ->
                 Acc ++ rebar_utils:find_files(filename:join(AppDir, SourceDir),
                                    ".*\.proto\$")
               end, [], proplists:get_all_values(i, GpbOpts)).
+
+update_include_files(TargetHrlDir, AppInfo) ->
+    OldOpts = rebar_app_info:opts(AppInfo),
+    NewOpts =
+        case dict:find(erl_opts, OldOpts) of
+            {ok, OldErlOpts} ->
+                NewErlOpts = lists:usort([{i, TargetHrlDir}|OldErlOpts]),
+                dict:store(erl_opts, NewErlOpts, OldOpts);
+            error ->
+                dict:store(erl_opts, [{i, TargetHrlDir}], OldOpts)
+        end,
+    rebar_app_info:opts(AppInfo, NewOpts).
 
 update_erl_first_files(TargetErlDir, AppInfo) ->
     case filelib:wildcard(filename:join(TargetErlDir, "*.erl")) of
