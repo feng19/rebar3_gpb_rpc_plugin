@@ -149,8 +149,8 @@ gen_handle_msg(Mod, Func, MsgPb, Input, UpperInput, UpperOutput) ->
     Maps = "++Mod++":"++Func++"(Msg, State),
     case maps:find(msg, Maps) of
         {ok, RespMsg} ->
-            Binary = "++MsgPb++":encode_msg(RespMsg),
-            RespBinary = bg_msg:encode_msg(?THIS_CMD, ?C_CMD_"++UpperOutput++", Binary),
+            PbBinary = "++MsgPb++":encode_msg(RespMsg),
+            RespBinary = bg_msg:encode_msg(?THIS_CMD, ?C_CMD_"++UpperOutput++", PbBinary),
             Maps#{resp_binary => RespBinary};
         error -> Maps
     end;\n".
