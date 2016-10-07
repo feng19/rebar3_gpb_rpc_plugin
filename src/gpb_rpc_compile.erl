@@ -57,7 +57,8 @@ gen_mod(Msg, ModuleNameSuffix, PrefixLen, ModPrefix, HeaderMsg, Target, Result) 
                 gen_header(Msg, MsgPb),
                 CallbackList, "\n",
                 Body,
-                gen_encode_msg(MsgPb, HeaderMsg)
+                gen_encode_msg(MsgPb, HeaderMsg),
+                gen_footer()
             ],
             file:write_file(Target, IoData);
         false -> none
@@ -85,6 +86,8 @@ gen_hrl_footer() ->
 gen_header(Msg, MsgPb) ->
     UpperMsg = string:to_upper(Msg),
 "-module("++ Msg ++").
+
+-ifdef(CMD_"++UpperMsg++").
 -include(\"msg.hrl\").
 -include(\""++Msg++".hrl\").
 -include(\""++MsgPb++".hrl\").
@@ -187,4 +190,7 @@ gen_decode_output_last() ->
 gen_encode_msg(MsgPb, HeaderMsg) ->
 "encode_msg(CCmd, RespMsg) ->
     RespBinary = "++MsgPb++":encode_msg(RespMsg),
-    "++HeaderMsg++":encode_msg(?THIS_CMD, CCmd, RespBinary).".
+    "++HeaderMsg++":encode_msg(?THIS_CMD, CCmd, RespBinary).\n".
+
+gen_footer() ->
+    "-endif.".
