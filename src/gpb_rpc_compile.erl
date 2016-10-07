@@ -87,8 +87,8 @@ gen_header(Msg, MsgPb) ->
     UpperMsg = string:to_upper(Msg),
 "-module("++ Msg ++").
 
--ifdef(CMD_"++UpperMsg++").
 -include(\"msg.hrl\").
+-ifdef(CMD_"++UpperMsg++").
 -include(\""++Msg++".hrl\").
 -include(\""++MsgPb++".hrl\").
 
