@@ -58,6 +58,7 @@ gen_mod(Msg, ModuleNameSuffix, PrefixLen, ModPrefix, HeaderMsg, Target, Result) 
                 CallbackList, "\n",
                 Body,
                 gen_encode_msg(MsgPb, HeaderMsg),
+                gen_send_msg(),
                 gen_footer()
             ],
             file:write_file(Target, IoData);
@@ -100,7 +101,8 @@ gen_header(Msg, MsgPb) ->
     decode_output_msg/1,
     decode_input/2,
     decode_output/2,
-    encode_msg/2
+    encode_msg/2,
+    send_msg/3
 ]).\n\n".
 
 gen_rpc_list(Msg, ModuleNameSuffix, PrefixLen, ModPrefix, HeaderMsg, RpcList) ->
@@ -194,3 +196,10 @@ gen_encode_msg(MsgPb, HeaderMsg) ->
 
 gen_footer() ->
     "-endif.".
+
+gen_send_msg() ->
+"send_msg(undefined, _CCmd, _Msg) -> undefined;
+send_msg(Pid, CCmd, Msg) ->
+        Binary = encode_msg(CCmd, Msg),
+        Pid ! {send, Binary},
+        ok.".

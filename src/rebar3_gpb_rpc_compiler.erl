@@ -18,7 +18,7 @@
 -spec compile(rebar_app_info:t()) -> ok.
 compile(AppInfo) ->
     AppDir = rebar_app_info:dir(AppInfo),
-    AppOutDir = rebar_app_info:out_dir(AppInfo),
+%%    AppOutDir = rebar_app_info:out_dir(AppInfo),
     Opts = rebar_app_info:opts(AppInfo),
     {ok, GpbOpts} = dict:find(gpb_opts, Opts),
     {ok, GpbRpcOpts0} = dict:find(gpb_rpc_opts, Opts),
@@ -30,12 +30,10 @@ compile(AppInfo) ->
     ModuleNameSuffix = proplists:get_value(module_name_suffix, GpbOpts,
                                            ?DEFAULT_MODULE_SUFFIX),
     SourceDirs = proplists:get_all_values(i, GpbOpts),
-    TargetErlDir = filename:join([AppOutDir,
-                                  proplists:get_value(o_erl, GpbRpcOpts0,
-                                                      ?DEFAULT_OUT_ERL_DIR)]),
-    TargetHrlDir = filename:join([AppOutDir,
-                                  proplists:get_value(o_hrl, GpbRpcOpts0,
-                                                      ?DEFAULT_OUT_HRL_DIR)]),
+    TargetErlDir0 = proplists:get_value(o_erl, GpbRpcOpts0, ?DEFAULT_OUT_ERL_DIR),
+    TargetErlDir = filename:join([AppDir, TargetErlDir0]),
+    TargetHrlDir0 = proplists:get_value(o_hrl, GpbRpcOpts0, ?DEFAULT_OUT_HRL_DIR),
+    TargetHrlDir = filename:join([AppDir, TargetHrlDir0]),
     rebar_api:debug("making sure that target erl dir ~p exists", [TargetErlDir]),
     ok = ensure_dir(TargetErlDir),
     rebar_api:debug("making sure that target hrl dir ~p exists", [TargetHrlDir]),
@@ -61,8 +59,8 @@ compile(AppInfo) ->
                                  [check_last_mod, {recursive, Recursive}])
                   end, SourceDirs),
 
-    NewAppInfo = update_include_files(TargetHrlDir, AppInfo),
-    update_erl_first_files(TargetErlDir, NewAppInfo).
+    NewAppInfo = update_include_files(TargetHrlDir0, AppInfo),
+    update_erl_first_files(TargetErlDir0, NewAppInfo).
 
 -spec clean(rebar_app_info:t()) -> ok.
 clean(AppInfo) ->
