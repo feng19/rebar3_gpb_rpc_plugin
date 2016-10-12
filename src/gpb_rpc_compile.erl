@@ -3,6 +3,8 @@
 %% API
 -export([ file/2 ]).
 
+-define(EMPTY_LINE, "\n\n").
+
 file(ProtoFile, GpbRpcOpts) ->
     case file:read_file(ProtoFile) of
         {ok, Binary} ->
@@ -54,11 +56,11 @@ gen_mod(Msg, ModuleNameSuffix, PrefixLen, ModPrefix, HeaderMsg, Target, Result) 
             {CallbackList, Body} = gen_rpc_list(Msg, ModuleNameSuffix, PrefixLen, ModPrefix, HeaderMsg, RpcList),
             MsgPb = Msg++ModuleNameSuffix,
             IoData = [
-                gen_header(Msg, MsgPb),
-                CallbackList, "\n",
-                Body,
-                gen_encode_msg(MsgPb, HeaderMsg),
-                gen_send_msg(),
+                gen_header(Msg, MsgPb), ?EMPTY_LINE,
+                CallbackList, ?EMPTY_LINE,
+                Body, ?EMPTY_LINE,
+                gen_encode_msg(MsgPb, HeaderMsg), ?EMPTY_LINE,
+                gen_send_msg(), ?EMPTY_LINE,
                 gen_footer()
             ],
             file:write_file(Target, IoData);
@@ -103,7 +105,7 @@ gen_header(Msg, MsgPb) ->
     decode_output/2,
     encode_msg/2,
     send_msg/3
-]).\n\n".
+]).".
 
 gen_rpc_list(Msg, ModuleNameSuffix, PrefixLen, ModPrefix, HeaderMsg, RpcList) ->
     Mod = ModPrefix++string:substr(Msg, PrefixLen+1),
@@ -117,13 +119,13 @@ gen_rpc_list(Msg, ModuleNameSuffix, PrefixLen, ModPrefix, HeaderMsg, RpcList) ->
     BodyList =
     [
         HandleMsg,
-        gen_handle_msg_last(),
-        gen_decode_input_msg(),
-        gen_decode_output_msg(),
+        gen_handle_msg_last(),?EMPTY_LINE,
+        gen_decode_input_msg(),?EMPTY_LINE,
+        gen_decode_output_msg(),?EMPTY_LINE,
         DecodeInput,
-        gen_decode_input_last(),
+        gen_decode_input_last(),?EMPTY_LINE,
         DecodeOutput,
-        gen_decode_output_last()
+        gen_decode_output_last(),?EMPTY_LINE
     ],
     {CallbackList,BodyList}.
 
@@ -161,17 +163,17 @@ gen_handle_msg(Mod, Func, MsgPb, Input, UpperInput, UpperOutput) ->
     end;\n".
 gen_handle_msg_last() ->
 "handle_msg(CCmd, _Binary, _State) ->
-    #{error => {not_defined_c_cmd, CCmd}}.\n\n".
+    #{error => {not_defined_c_cmd, CCmd}}.".
 
 gen_decode_input_msg() ->
 "decode_input_msg(Binary) ->
     {?THIS_CMD, CCmd, MsgBinary} = bg_msg:decode_msg(Binary),
-    decode_input(CCmd, MsgBinary).\n\n".
+    decode_input(CCmd, MsgBinary).".
 
 gen_decode_output_msg() ->
 "decode_output_msg(Binary) ->
     {?THIS_CMD, CCmd, MsgBinary} = bg_msg:decode_msg(Binary),
-    decode_output(CCmd, MsgBinary).\n\n".
+    decode_output(CCmd, MsgBinary).".
 
 gen_decode_input(_Mod, _Func, _MsgPb, _Input, "UNDEFINED") -> "";
 gen_decode_input(Mod, Func, MsgPb, Input, UpperInput) ->
@@ -179,7 +181,7 @@ gen_decode_input(Mod, Func, MsgPb, Input, UpperInput) ->
     {"++Mod++", "++Func++", "++MsgPb++":decode_msg(MsgBinary, "++Input++")};\n".
 gen_decode_input_last() ->
 "decode_input(CCmd, _MsgBinary) ->
-    {error, {not_defined_c_cmd, CCmd}}.\n\n".
+    {error, {not_defined_c_cmd, CCmd}}.".
 
 gen_decode_output(_MsgPb, _Output, "UNDEFINED") -> "";
 gen_decode_output(MsgPb, Output, UpperOutput) ->
@@ -187,12 +189,12 @@ gen_decode_output(MsgPb, Output, UpperOutput) ->
     "++MsgPb++":decode_msg(MsgBinary, "++Output++");\n".
 gen_decode_output_last() ->
 "decode_output(CCmd, _MsgBinary) ->
-    {error, {not_defined_c_cmd, CCmd}}.\n\n".
+    {error, {not_defined_c_cmd, CCmd}}.".
 
 gen_encode_msg(MsgPb, HeaderMsg) ->
 "encode_msg(CCmd, RespMsg) ->
     RespBinary = "++MsgPb++":encode_msg(RespMsg),
-    "++HeaderMsg++":encode_msg(?THIS_CMD, CCmd, RespBinary).\n".
+    "++HeaderMsg++":encode_msg(?THIS_CMD, CCmd, RespBinary).".
 
 gen_footer() ->
     "-endif.".
