@@ -80,8 +80,14 @@ gen_hrl_header(Msg) ->
 gen_macros(Prefix, EnumList) ->
     [gen_macro(Prefix, Key, Value)||{Key, Value} <- EnumList].
 gen_macro(Prefix, Key, Value) ->
-    Macro = string:to_upper(atom_to_list(Prefix))++"_"++string:to_upper(atom_to_list(Key)),
-    io_lib:format("-define(~ts, ~p).%~p~n", [Macro, Value, Key]).
+    UpperPrefix = string:to_upper(atom_to_list(Prefix)),
+    UpperKey = string:to_upper(atom_to_list(Key)),
+    Macro = UpperPrefix++"_"++UpperKey,
+    MacroKey = UpperPrefix++"_"++UpperKey++"_KEY",
+    [
+        io_lib:format("-define(~ts, ~p).%~p~n", [Macro, Value, Key]),
+        io_lib:format("-define(~ts, '~p').%~p~n", [MacroKey, Key, Value])
+    ].
 
 gen_hrl_footer() ->
     "\n-endif.".
