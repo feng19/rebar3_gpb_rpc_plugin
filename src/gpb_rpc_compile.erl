@@ -86,7 +86,7 @@ gen_macro(Prefix, Key, Value) ->
     MacroKey = UpperPrefix++"_"++UpperKey++"_KEY",
     [
         io_lib:format("-define(~ts, ~p).%~p~n", [Macro, Value, Key]),
-        io_lib:format("-define(~ts, '~p').%~p~n", [MacroKey, Key, Value])
+        io_lib:format("-define(~ts, ~p).%~p~n", [MacroKey, Key, Value])
     ].
 
 gen_hrl_footer() ->
