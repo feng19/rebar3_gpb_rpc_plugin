@@ -116,12 +116,11 @@ gen_header(Msg, MsgPb) ->
 gen_rpc_list(Msg, ModuleNameSuffix, PrefixLen, ModPrefix, HeaderMsg, RpcList) ->
     Mod = ModPrefix++string:substr(Msg, PrefixLen+1),
     MsgPb = Msg++ModuleNameSuffix,
-    [CallbackList, HandleMsg, DecodeInput, DecodeOutput] =
+    {[CallbackList, HandleMsg, DecodeInput, DecodeOutput], _} =
         lists:foldl(
-            fun(Rpc, Acc) ->
-                GenList = gen_rpc(MsgPb, HeaderMsg, Mod, Rpc),
-                lists:zipwith(fun(Gen, OldList) -> [Gen|OldList] end, Acc, GenList)
-            end, lists:duplicate(4, []), RpcList),
+            fun(Rpc, {GenListAcc, OutputList}) ->
+                gen_rpc(MsgPb, HeaderMsg, Mod, Rpc, GenListAcc, OutputList)
+            end, {lists:duplicate(4, []), []}, RpcList),
     BodyList =
     [
         HandleMsg,
@@ -135,18 +134,26 @@ gen_rpc_list(Msg, ModuleNameSuffix, PrefixLen, ModPrefix, HeaderMsg, RpcList) ->
     ],
     {CallbackList,BodyList}.
 
-gen_rpc(MsgPb, HeaderMsg, Mod, {Func0, {[Input0], _}, {[Output0], _}, _}) ->
+gen_rpc(MsgPb, HeaderMsg, Mod, {Func0, {[Input0], _}, {[Output0], _}, _}, GenListAcc, OutputList) ->
     Func = atom_to_list(Func0),
     Input = atom_to_list(Input0),
     UpperInput = string:to_upper(Input),
     Output = atom_to_list(Output0),
-    UpperOutput = string:to_upper(Output),
-    [
+    {UpperOutput, NewOutputList} =
+    case lists:member(Output0, OutputList) of
+        true ->
+            {"UNDEFINED", OutputList};
+        false ->
+            {string:to_upper(Output), [Output0|OutputList]}
+    end,
+    GenList = [
         gen_callback(Func, HeaderMsg),
         gen_handle_msg(Mod, Func, MsgPb, Input, UpperInput, UpperOutput),
         gen_decode_input(Mod, Func, MsgPb, Input, UpperInput),
         gen_decode_output(MsgPb, Output, UpperOutput)
-    ].
+    ],
+    NewGenListAcc = lists:zipwith(fun(Gen, OldList) -> [Gen|OldList] end, GenListAcc, GenList),
+    {NewGenListAcc, NewOutputList}.
 
 gen_callback(Func, HeaderMsg) ->
 "-callback "++Func++"(Msg :: "++HeaderMsg++":msg(), State :: "++HeaderMsg++":state()) -> Reply :: "++HeaderMsg++":func_reply().\n".
