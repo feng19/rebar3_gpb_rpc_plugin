@@ -147,7 +147,7 @@ gen_rpc(MsgPb, HeaderMsg, Mod, {Func0, {[Input0], _}, {[Output0], _}, _}, GenLis
                 [
                     gen_callback(Func, HeaderMsg),
                     gen_handle_msg(Mod, Func, MsgPb, Input, UpperInput, UpperOutput),
-                    "",
+                    gen_decode_input(Mod, Func, MsgPb, Input, UpperInput),
                     ""
                 ],
                 OutputList
