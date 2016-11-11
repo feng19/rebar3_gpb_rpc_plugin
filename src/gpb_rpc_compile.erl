@@ -139,19 +139,30 @@ gen_rpc(MsgPb, HeaderMsg, Mod, {Func0, {[Input0], _}, {[Output0], _}, _}, GenLis
     Input = atom_to_list(Input0),
     UpperInput = string:to_upper(Input),
     Output = atom_to_list(Output0),
-    {UpperOutput, NewOutputList} =
+    UpperOutput = string:to_upper(Output),
+    {GenList, NewOutputList} =
     case lists:member(Output0, OutputList) of
         true ->
-            {"UNDEFINED", OutputList};
+            {
+                [
+                    gen_callback(Func, HeaderMsg),
+                    gen_handle_msg(Mod, Func, MsgPb, Input, UpperInput, UpperOutput),
+                    "",
+                    ""
+                ],
+                OutputList
+            };
         false ->
-            {string:to_upper(Output), [Output0|OutputList]}
+            {
+                [
+                    gen_callback(Func, HeaderMsg),
+                    gen_handle_msg(Mod, Func, MsgPb, Input, UpperInput, UpperOutput),
+                    gen_decode_input(Mod, Func, MsgPb, Input, UpperInput),
+                    gen_decode_output(MsgPb, Output, UpperOutput)
+                ],
+                [Output0|OutputList]
+            }
     end,
-    GenList = [
-        gen_callback(Func, HeaderMsg),
-        gen_handle_msg(Mod, Func, MsgPb, Input, UpperInput, UpperOutput),
-        gen_decode_input(Mod, Func, MsgPb, Input, UpperInput),
-        gen_decode_output(MsgPb, Output, UpperOutput)
-    ],
     NewGenListAcc = lists:zipwith(fun(Gen, OldList) -> [Gen|OldList] end, GenListAcc, GenList),
     {NewGenListAcc, NewOutputList}.
 
