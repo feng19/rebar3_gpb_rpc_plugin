@@ -35,9 +35,9 @@ compile(AppInfo) ->
     TargetHrlDir0 = proplists:get_value(o_hrl, GpbRpcOpts),
     TargetHrlDir = filename:join([AppDir, TargetHrlDir0]),
     ErlTplFile0 = proplists:get_value(erl_tpl, GpbRpcOpts),
-    ErlTplFile = filename:join([AppDir, ErlTplFile0]),
+    ErlTpl = bbmustache:parse_file(filename:join([AppDir, ErlTplFile0])),
     HrlTplFile0 = proplists:get_value(hrl_tpl, GpbRpcOpts),
-    HrlTplFile = filename:join([AppDir, HrlTplFile0]),
+    HrlTpl = bbmustache:parse_file(filename:join([AppDir, HrlTplFile0])),
 
     rebar_api:debug("making sure that target erl dir ~p exists", [TargetErlDir]),
     ok = ensure_dir(TargetErlDir),
@@ -54,7 +54,7 @@ compile(AppInfo) ->
                                  filename:join(AppDir, SourceDir), ".proto",
                                  TargetErlDir, ".erl",
                                  fun(Source, Target, Config) ->
-                                    compile(Source, Target, ErlTplFile, HrlTplFile, GpbRpcOpts, Config)
+                                    compile(Source, Target, ErlTpl, HrlTpl, GpbRpcOpts, Config)
                                  end,
                                  [check_last_mod, {recursive, Recursive}])
                   end, SourceDirs),
@@ -90,10 +90,10 @@ clean(AppInfo) ->
 %% Private API
 %% ===================================================================
 -spec compile(string(), string(), string(), string(), proplists:proplist(), term()) -> ok.
-compile(Source, _Target, ErlTplFile, HrlTplFile, GpbRpcOpts, _Config) ->
+compile(Source, _Target, ErlTpl, HrlTpl, GpbRpcOpts, _Config) ->
     rebar_api:debug("compiling ~p", [Source]),
     rebar_api:debug("opts: ~p", [GpbRpcOpts]),
-    case gpb_rpc_compile:file(Source, ErlTplFile, HrlTplFile, GpbRpcOpts) of
+    case gpb_rpc_compile:file(Source, ErlTpl, HrlTpl, GpbRpcOpts) of
         ok ->
             ok;
         {error, Reason} ->

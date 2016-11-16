@@ -5,20 +5,20 @@
 
 -define(EMPTY_LINE, "\n\n").
 
-file(ProtoFile, ErlTplFile, HrlTplFile, GpbRpcOpts) ->
+file(ProtoFile, ErlTpl, HrlTpl, GpbRpcOpts) ->
     case file:read_file(ProtoFile) of
         {ok, Binary} ->
             String = binary_to_list(Binary),
             ProtoName = filename:rootname(filename:basename(ProtoFile)),
             case parse_lines(ProtoName, String) of
                 {ok, ScanProtoResult}->
-                    file(ProtoName, ErlTplFile, HrlTplFile, GpbRpcOpts, ScanProtoResult);
+                    file(ProtoName, ErlTpl, HrlTpl, GpbRpcOpts, ScanProtoResult);
                 Err -> Err
             end;
         Err -> Err
     end.
 
-file(ProtoName, ErlTplFile, HrlTplFile, GpbRpcOpts, ScanProtoResult) ->
+file(ProtoName, ErlTpl, HrlTpl, GpbRpcOpts, ScanProtoResult) ->
     TargetErlDir = proplists:get_value(o_erl, GpbRpcOpts),
     TargetHrlDir = proplists:get_value(o_hrl, GpbRpcOpts),
     ModuleNameSuffix = proplists:get_value(module_name_suffix, GpbRpcOpts),
@@ -28,8 +28,8 @@ file(ProtoName, ErlTplFile, HrlTplFile, GpbRpcOpts, ScanProtoResult) ->
     ErlTarget = filename:join([TargetErlDir, ProtoName ++ ".erl"]),
     HrlTarget = filename:join([TargetHrlDir, ProtoName ++ ".hrl"]),
 
-    gen_mod(ProtoName, ErlTplFile, ModuleNameSuffix, PrefixLen, ModPrefix, ErlTarget, ScanProtoResult),
-    gen_hrl(ProtoName, HrlTplFile, HrlTarget, ScanProtoResult),
+    gen_mod(ProtoName, ErlTpl, ModuleNameSuffix, PrefixLen, ModPrefix, ErlTarget, ScanProtoResult),
+    gen_hrl(ProtoName, HrlTpl, HrlTarget, ScanProtoResult),
     ok.
 
 parse_lines(ProtoName, String) ->
@@ -48,20 +48,15 @@ parse_lines(ProtoName, String) ->
     end.
 
 %%--------------------------------------------------------------------
-gen_mod(ProtoName, ErlTplFile, ModuleNameSuffix, PrefixLen, ModPrefix, Target, ScanProtoResult) ->
-    case file:read_file(ErlTplFile) of
-        {ok, RenderBin} ->
-            Service = list_to_atom(ProtoName ++"_service"),
-            case lists:keyfind({service, Service}, 1, ScanProtoResult) of
-                {_, RpcList} ->
-                    RenderData = gen_mod_do(ProtoName, ModuleNameSuffix, PrefixLen, ModPrefix, RpcList),
-                    IoData = bbmustache:render(RenderBin, RenderData, [{key_type, atom}]),
-                    file:write_file(Target, IoData);
-                false ->
-                    rebar_api:debug("skipped gen gpb rpc : ~p", [ProtoName])
-            end;
-        {error, Reason} ->
-            rebar_api:abort("mustache read file:~p ~p", [ErlTplFile, Reason])
+gen_mod(ProtoName, ErlTpl, ModuleNameSuffix, PrefixLen, ModPrefix, Target, ScanProtoResult) ->
+    Service = list_to_atom(ProtoName ++"_service"),
+    case lists:keyfind({service, Service}, 1, ScanProtoResult) of
+        {_, RpcList} ->
+            RenderData = gen_mod_do(ProtoName, ModuleNameSuffix, PrefixLen, ModPrefix, RpcList),
+            IoData = bbmustache:compile(ErlTpl, RenderData, [{key_type, atom}]),
+            file:write_file(Target, IoData);
+        false ->
+            rebar_api:debug("skipped gen gpb rpc : ~p", [ProtoName])
     end.
 gen_mod_do(ProtoName, ModuleNameSuffix, PrefixLen, ModPrefix, RpcList0) ->
     GpbProto = ProtoName ++ ModuleNameSuffix,
@@ -164,21 +159,16 @@ erl_rpc({Func0, {[Input0], _}, {[Output0], _}, _}, {CallbackList, RpcList, Input
     end.
 
 %%--------------------------------------------------------------------
-gen_hrl(ProtoName, HrlTplFile, Target, Result) ->
-    case file:read_file(HrlTplFile) of
-        {ok, RenderBin} ->
-            ProtoNameUpper = string:to_upper(ProtoName),
-            BaseData = [
-                {proto_name, ProtoName},
-                {proto_name_upper, ProtoNameUpper}
-            ],
-            EnumsList = [ hrl_enums_list(EnumName, EnumList, BaseData) || {{enum, EnumName}, EnumList} <- Result],
-            RenderData = [{enums_list, EnumsList}|BaseData],
-            IoData = bbmustache:render(RenderBin, RenderData, [{key_type, atom}]),
-            file:write_file(Target, IoData);
-        {error, Reason} ->
-            rebar_api:abort("mustache read file:~p ~p", [HrlTplFile, Reason])
-    end.
+gen_hrl(ProtoName, HrlTpl, Target, Result) ->
+    ProtoNameUpper = string:to_upper(ProtoName),
+    BaseData = [
+        {proto_name, ProtoName},
+        {proto_name_upper, ProtoNameUpper}
+    ],
+    EnumsList = [ hrl_enums_list(EnumName, EnumList, BaseData) || {{enum, EnumName}, EnumList} <- Result],
+    RenderData = [{enums_list, EnumsList}|BaseData],
+    IoData = bbmustache:compile(HrlTpl, RenderData, [{key_type, atom}]),
+    file:write_file(Target, IoData).
 hrl_enums_list(EnumName, EnumList0, BaseData0) ->
     EnumNameUpper = string:to_upper(atom_to_list(EnumName)),
     BaseData = [
