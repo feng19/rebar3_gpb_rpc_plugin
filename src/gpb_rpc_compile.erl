@@ -78,10 +78,10 @@ gen_mod_do(ProtoName, ModuleNameSuffix, PrefixLen, ModPrefix, RpcList0) ->
         {proto_name_upper, ProtoNameUpper},
         {gpb_proto, GpbProto},
         {handle_mod, HandleMod},
-        {callback_list, CallbackList},
-        {rpc_list, RpcList},
-        {input_list, InputList},
-        {output_list, OutputList}|BaseData
+        {callback_list, lists:reverse(CallbackList)},
+        {rpc_list, lists:reverse(RpcList)},
+        {input_list, lists:reverse(InputList)},
+        {output_list, lists:reverse(OutputList)}|BaseData
     ].
 
 erl_rpc({Func0, {[undefined], _}, {[Output0], _}, _}, {CallbackList, RpcList, InputList, OutputList, OutputListAcc}, BaseData) ->
@@ -114,7 +114,7 @@ erl_rpc({Func0, {[Input0], _}, {[undefined], _}, _}, {CallbackList, RpcList, Inp
     Func = atom_to_list(Func0),
     Input = atom_to_list(Input0),
     InputUpper = string:to_upper(Input),
-    NewCallbackList = [{handle_func, Func}|CallbackList],
+    NewCallbackList = [[{handle_func, Func}]|CallbackList],
     RpcData = [
         {input, Input},{input_upper, InputUpper},
         {handle_func, Func}|BaseData
@@ -132,8 +132,7 @@ erl_rpc({Func0, {[Input0], _}, {[Output0], _}, _}, {CallbackList, RpcList, Input
     InputUpper = string:to_upper(Input),
     Output = atom_to_list(Output0),
     OutputUpper = string:to_upper(Output),
-    HandleFunc = [{handle_func, Func}],
-    NewCallbackList = [HandleFunc|CallbackList],
+    NewCallbackList = [[{handle_func, Func}]|CallbackList],
     RpcData = [
         {input, Input},{input_upper, InputUpper},
         {output, Output},{output_upper, OutputUpper},
