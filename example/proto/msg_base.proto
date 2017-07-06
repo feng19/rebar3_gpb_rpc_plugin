@@ -1,0 +1,16 @@
+syntax = "proto3";
+import "google/protobuf/empty.proto";
+
+enum c_cmd{
+    heartbeat_req   = 0;
+    heartbeat_resp  = 1;
+}
+
+service msg_base_service{
+    rpc heartbeat(heartbeat_req) returns (heartbeat_resp);
+    rpc heartbeat_1(heartbeat_req) returns (Empty);
+    rpc heartbeat_2(Empty) returns (heartbeat_resp);
+}
+
+message heartbeat_req{}
+message heartbeat_resp{}

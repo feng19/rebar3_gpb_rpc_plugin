@@ -1,0 +1,4 @@
+
+enum cmd{
+    msg_base = 0;
+}

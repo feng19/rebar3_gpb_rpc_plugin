@@ -3,3 +3,12 @@ _build/
 .rebar3/
 ebin/
 *.iml
+rebar3.crashdump
+example/rebar3.crashdump
+example/.rebar3/
+example/ebin/
+example/_build/
+example/src/proto
+example/src/msg
+example/include/proto
+example/include/msg
