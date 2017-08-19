@@ -1,6 +1,6 @@
 {application,rebar3_gpb_rpc_plugin,
              [{description,"A rebar3 gpb rpc plugin for compiling .proto files"},
-              {vsn,"0.1.15"},
+              {vsn,"0.2.0"},
               {registered,[]},
               {applications,[kernel,stdlib]},
               {env,[]},
