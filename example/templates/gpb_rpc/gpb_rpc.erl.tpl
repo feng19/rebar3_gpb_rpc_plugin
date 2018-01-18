@@ -21,7 +21,7 @@
 ]).
 
 {{#callback_list}}
--callback {{handle_func}}(Msg :: bg_msg:msg(), State :: bg_msg:state()) -> Reply :: bg_msg:func_reply().
+-callback {{handle_func}}(ex_msg:msg(), ex_msg:state()) -> ex_msg:func_reply().
 {{/callback_list}}
 
 {{#rpc_list}}
