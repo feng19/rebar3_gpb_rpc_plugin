@@ -53,7 +53,7 @@ compile(AppInfo) ->
     lists:foreach(fun(SourceDir) ->
         ok = rebar_base_compiler:run(Opts, [],
             filename:join(AppDir, SourceDir), ".proto",
-            TargetErlDir, ".erl",
+            TargetHrlDir, ".hrl",
             fun(Source, Target, Config) ->
                 compile(Source, Target, ErlTpl, HrlTpl, GpbRpcOpts, Config)
             end,
