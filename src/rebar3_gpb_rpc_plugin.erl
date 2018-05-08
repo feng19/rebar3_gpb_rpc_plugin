@@ -4,6 +4,8 @@
 
 -spec init(rebar_state:t()) -> {ok, rebar_state:t()}.
 init(State0) ->
-    {ok, State1} = rebar3_gpb_rpc_prv_compile:init(State0),
-    {ok, State2} = rebar3_gpb_rpc_prv_clean:init(State1),
-    {ok, State2}.
+    {ok, State1} = rebar3_gpb_prv_compile:init(State0),
+    {ok, State2} = rebar3_gpb_prv_clean:init(State1),
+    {ok, State3} = rebar3_gpb_rpc_prv_compile:init(State2),
+    {ok, State4} = rebar3_gpb_rpc_prv_clean:init(State3),
+    {ok, State4}.

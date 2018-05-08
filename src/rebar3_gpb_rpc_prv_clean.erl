@@ -5,7 +5,7 @@
     format_error/1]).
 
 -define(PROVIDER, clean).
--define(DEPS, [{default, app_discovery}]).
+-define(DEPS, [{default, app_discovery}, {protobuf, ?PROVIDER}]).
 -define(DESC, "Remove compiled Protocol Buffers rpc from apps.").
 
 %% ===================================================================
