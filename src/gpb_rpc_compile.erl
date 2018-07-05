@@ -132,6 +132,7 @@ gen_mod(ProtoName, ModuleNameSuffix, Defines) ->
                 _ ->
                     [
                         {proto_name, ProtoName},
+                        {gpb_proto, GpbProto},
                         {callback_list, CallbackList}
                     ]
             end;
