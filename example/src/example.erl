@@ -13,12 +13,11 @@
 %% API functions
 %%====================================================================
 
-handle_msg(<<Cmd:7, CCmd:9, Binary/binary>>, State) ->
-    MsgMod = msg_pb:enum_symbol_by_value_cmd(Cmd),
-    MsgMod:handle_msg(CCmd, Binary, State).
+handle_msg(<<Cmd:16, Binary/binary>>, State) ->
+    msg:handle_msg(Cmd, Binary, State).
 
 mk_resp() ->
-    msg_base:encode_msg(?C_CMD_HEARTBEAT_RESP, #heartbeat_resp{}).
+    msg:encode_resp_msg(#heartbeat_resp{}).
 
 %%====================================================================
 %% Internal functions

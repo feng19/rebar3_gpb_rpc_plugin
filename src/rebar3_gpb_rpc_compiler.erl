@@ -5,16 +5,25 @@
     clean/1
 ]).
 
--define(OPT_KEYS, [recursive, msg_prefix, mod_prefix, module_name_suffix, o_erl, o_hrl, erl_tpl, hrl_tpl]).
+-define(OPT_KEYS, [
+    recursive, msg_prefix, mod_prefix, module_name_suffix,
+    o_erl, o_hrl, erl_tpl, hrl_tpl,
+    router_erl_tpl, router_hrl_tpl,
+    router, cmd_bit, ccmd_bit
+]).
 -define(DEFAULT_PROTO_DIR, "proto").
 -define(DEFAULT_OUT_ERL_DIR, "src/rpc").
 -define(DEFAULT_OUT_HRL_DIR, "include/rpc").
 -define(DEFAULT_MODULE_SUFFIX, "_pb").
--define(DEFAULT_HEADER_MSG, "msg").
 -define(DEFAULT_MSG_PREFIX, "msg_").
 -define(DEFAULT_MOD_PREFIX, "mod_").
 -define(DEFAULT_ERL_TPL, "templates/gen_rpc.hrl.tpl").
 -define(DEFAULT_HRL_TPL, "templates/gen_rpc.erl.tpl").
+-define(DEFAULT_ROUTER_ERL_TPL, "templates/gen_rpc_router.erl.tpl").
+-define(DEFAULT_ROUTER_HRL_TPL, "templates/gen_rpc_router.hrl.tpl").
+-define(DEFAULT_ROUTER, "msg.proto").
+-define(DEFAULT_CMD_BIT, 7).
+-define(DEFAULT_CCMD_BIT, 9).
 
 %% ===================================================================
 %% Public API
@@ -39,6 +48,8 @@ compile(AppInfo) ->
     ErlTpl = bbmustache:parse_file(filename:join([AppDir, ErlTplFile0])),
     HrlTplFile0 = proplists:get_value(hrl_tpl, GpbRpcOpts),
     HrlTpl = bbmustache:parse_file(filename:join([AppDir, HrlTplFile0])),
+    RouterFile0 = proplists:get_value(router, GpbRpcOpts),
+    RouterFile = filename:join(AppDir, RouterFile0),
 
     rebar_api:debug("making sure that target erl dir ~p exists", [TargetErlDir]),
     ok = ensure_dir(TargetErlDir),
@@ -50,15 +61,21 @@ compile(AppInfo) ->
 
     %% check if non-recursive
     Recursive = proplists:get_value(recursive, GpbRpcOpts),
-    lists:foreach(fun(SourceDir) ->
-        ok = rebar_base_compiler:run(Opts, [],
-            filename:join(AppDir, SourceDir), ".proto",
-            TargetHrlDir, ".hrl",
-            fun(Source, Target, Config) ->
-                compile(Source, Target, ErlTpl, HrlTpl, GpbRpcOpts, Config)
-            end,
-            [check_last_mod, {recursive, Recursive}])
-                  end, SourceDirs),
+    [begin
+         ok = rebar_base_compiler:run(Opts, [],
+             filename:join(AppDir, SourceDir), ".proto", TargetHrlDir, ".hrl",
+             fun(Source, Target, Config) ->
+                 case filename:basename(Source) == RouterFile of
+                     true -> % skipped
+                         ok;
+                     _ ->
+                         compile(Source, Target, ErlTpl, HrlTpl, GpbRpcOpts, Config)
+                 end
+             end,
+             [check_last_mod, {recursive, Recursive}])
+     end || SourceDir <- SourceDirs],
+
+    compile_router(RouterFile, AppDir, TargetErlDir, GpbRpcOpts),
 
     AppInfo1 = update_include_files(TargetHrlDir0, AppInfo),
     NewAppInfo = update_include_files(proplists:get_value(o_hrl, GpbOpts, "include"), AppInfo1),
@@ -102,6 +119,28 @@ compile(Source, _Target, ErlTpl, HrlTpl, GpbRpcOpts, _Config) ->
             rebar_utils:abort("failed to compile ~s: ~s~n", [Source, ReasonStr])
     end.
 
+compile_router(RouterFile, AppDir, TargetErlDir, GpbRpcOpts) ->
+    filelib:is_file(RouterFile) orelse rebar_utils:abort("miss router ~s~n", [RouterFile]),
+    RouterExt = filename:extension(RouterFile),
+    RouterErl0 = filename:basename(RouterFile, RouterExt) ++ ".erl",
+    TargetErls0 = filelib:wildcard("*.erl", TargetErlDir),
+    case lists:member(RouterErl0, TargetErls0) of
+        true ->
+            RouterErl = filename:join(TargetErlDir, RouterErl0),
+            TargetErls1 = lists:delete(RouterErl0, TargetErls0),
+            TargetErls = [filename:join(TargetErlDir, TargetErl) || TargetErl <- TargetErls1],
+            [Max | _] = lists:reverse(lists:sort([filelib:last_modified(TargetErl)
+                || TargetErl <- [RouterFile | TargetErls]])),
+            case filelib:last_modified(RouterErl) < Max of
+                true ->
+                    gpb_rpc_compile:gen_router(AppDir, RouterFile, GpbRpcOpts);
+                false ->
+                    skipped
+            end;
+        false ->
+            gpb_rpc_compile:gen_router(AppDir, RouterFile, GpbRpcOpts)
+    end.
+
 -spec ensure_dir(filelib:dirname()) -> 'ok' | {error, Reason :: file:posix()}.
 ensure_dir(OutDir) ->
     %% Make sure that ebin/ exists and is on the path
@@ -129,6 +168,16 @@ handle_opts([erl_tpl | OptKeys], Opts) ->
     handle_opts_do(erl_tpl, ?DEFAULT_ERL_TPL, OptKeys, Opts);
 handle_opts([hrl_tpl | OptKeys], Opts) ->
     handle_opts_do(hrl_tpl, ?DEFAULT_HRL_TPL, OptKeys, Opts);
+handle_opts([router_erl_tpl | OptKeys], Opts) ->
+    handle_opts_do(router_erl_tpl, ?DEFAULT_ROUTER_ERL_TPL, OptKeys, Opts);
+handle_opts([router_hrl_tpl | OptKeys], Opts) ->
+    handle_opts_do(router_Hrl_tpl, ?DEFAULT_ROUTER_HRL_TPL, OptKeys, Opts);
+handle_opts([router | OptKeys], Opts) ->
+    handle_opts_do(router, ?DEFAULT_ROUTER, OptKeys, Opts);
+handle_opts([cmd_bit | OptKeys], Opts) ->
+    handle_opts_do(cmd_bit, ?DEFAULT_CMD_BIT, OptKeys, Opts);
+handle_opts([ccmd_bit | OptKeys], Opts) ->
+    handle_opts_do(ccmd_bit, ?DEFAULT_CCMD_BIT, OptKeys, Opts);
 handle_opts([], Opts) -> Opts.
 
 handle_opts_do(Key, DefaultValue, OptKeys, Opts) ->
