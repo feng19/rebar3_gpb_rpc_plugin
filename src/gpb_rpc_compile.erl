@@ -34,17 +34,19 @@ gen_router(AppDir, RouterFile, GpbRpcOpts) ->
     {ok, RouterDefines} = to_proto_defines(filename:join([AppDir, RouterFile]), SourceDirs),
     {_, RouterCmds} = hd([{EnumName, EnumList} || {{enum, EnumName}, EnumList} <- RouterDefines]),
 
-    #{input_list := InputList0, output_list := OutputList0} = lists:foldl(
-        fun({ModCmd, RouterCmd}, Acc) ->
+    #{input_list := InputList0, output_list := OutputList0, router_cmd_list := RouterCmdList} = lists:foldl(
+        fun({ModCmd, RouterCmd}, #{router_cmd_list := RouterCmdListT} = Acc) ->
             ProtoName = atom_to_list(ModCmd),
             case find_proto_file(AppDir, ProtoName, SourceDirs) of
                 [{_, Defines} | _] ->
-                    gen_router_do(ProtoName, RouterCmd, Defines, ModuleNameSuffix, PrefixLen, ModPrefix, CCmdBit, Acc);
+                    RouterCmdTerm = [{cmd_name, ModCmd}, {cmd, RouterCmd}],
+                    gen_router_do(ProtoName, RouterCmd, Defines, ModuleNameSuffix,
+                        PrefixLen, ModPrefix, CCmdBit, Acc#{router_cmd_list => [RouterCmdTerm | RouterCmdListT]});
                 false ->
                     rebar_utils:abort("router:~ts.proto have define ~p, but no find ~p.proto file",
                         [RouterFile0, ModCmd, ModCmd])
             end
-        end, #{input_list => [], output_list => [], output_names => []}, RouterCmds),
+        end, #{input_list => [], output_list => [], output_names => [], router_cmd_list => []}, RouterCmds),
 
     InputList = lists:reverse(InputList0),
     OutputList = lists:reverse(OutputList0),
@@ -54,18 +56,22 @@ gen_router(AppDir, RouterFile, GpbRpcOpts) ->
     RouterErlTplFile0 = proplists:get_value(router_erl_tpl, GpbRpcOpts),
     RouterErlTplFile = bbmustache:parse_file(filename:join([AppDir, RouterErlTplFile0])),
 
+    CmdList = lists:sort(InputList ++ OutputList),
+
     ErlRenderData = maps:to_list(#{
         file => RouterFile0,
         file_upper => string:to_upper(RouterFile0),
         input_list => add_is_last(InputList),
-        output_list => add_is_last(OutputList)
+        output_list => add_is_last(OutputList),
+        router_cmd_list => add_is_last(lists:reverse(RouterCmdList)),
+        cmd_list => add_is_last(CmdList)
     }),
     compile_tpl(ErlTarget, RouterErlTplFile, ErlRenderData),
 
     HrlRenderData = [
         {file, RouterFile0},
         {file_upper, string:to_upper(RouterFile0)},
-        {cmd_list, lists:sort(InputList ++ OutputList)}
+        {cmd_list, CmdList}
     ],
     TargetHrlDir = proplists:get_value(o_hrl, GpbRpcOpts),
     HrlTarget = filename:join([TargetHrlDir, RouterFile0 ++ ".hrl"]),
