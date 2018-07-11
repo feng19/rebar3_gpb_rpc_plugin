@@ -58,14 +58,14 @@ gen_router(AppDir, RouterFile, GpbRpcOpts) ->
 
     CmdList = lists:sort(InputList ++ OutputList),
 
-    ErlRenderData = maps:to_list(#{
-        file => RouterFile0,
-        file_upper => string:to_upper(RouterFile0),
-        input_list => add_is_last(InputList),
-        output_list => add_is_last(OutputList),
-        router_cmd_list => add_is_last(lists:reverse(RouterCmdList)),
-        cmd_list => add_is_last(CmdList)
-    }),
+    ErlRenderData = [
+        {file, RouterFile0},
+        {file_upper, string:to_upper(RouterFile0)},
+        {input_list, add_is_last(InputList)},
+        {output_list, add_is_last(OutputList)},
+        {router_cmd_list, add_is_last(lists:reverse(RouterCmdList))},
+        {cmd_list, add_is_last(CmdList)}
+    ],
     compile_tpl(ErlTarget, RouterErlTplFile, ErlRenderData),
 
     HrlRenderData = [
