@@ -6,7 +6,7 @@
 ]).
 
 -define(OPT_KEYS, [
-    recursive, msg_prefix, mod_prefix, module_name_suffix,
+    recursive, msg_prefix, mod_prefix,
     o_erl, o_hrl, erl_tpl, hrl_tpl,
     router_erl_tpl, router_hrl_tpl,
     router, cmd_bit, ccmd_bit
@@ -14,7 +14,7 @@
 -define(DEFAULT_PROTO_DIR, "proto").
 -define(DEFAULT_OUT_ERL_DIR, "src/rpc").
 -define(DEFAULT_OUT_HRL_DIR, "include/rpc").
--define(DEFAULT_MODULE_SUFFIX, "_pb").
+-define(DEFAULT_MODULE_SUFFIX, "").
 -define(DEFAULT_MSG_PREFIX, "msg_").
 -define(DEFAULT_MOD_PREFIX, "mod_").
 -define(DEFAULT_ERL_TPL, "templates/gen_rpc.hrl.tpl").
@@ -34,11 +34,15 @@ compile(AppInfo) ->
     AppDir = rebar_app_info:dir(AppInfo),
     Opts = rebar_app_info:opts(AppInfo),
     {ok, GpbOpts} = dict:find(gpb_opts, Opts),
+    ModuleNameSuffix = proplists:get_value(module_name_suffix, GpbOpts, ?DEFAULT_MODULE_SUFFIX),
 
     {ok, GpbRpcOpts0} = dict:find(gpb_rpc_opts, Opts),
     SourceDirs = proplists:get_all_values(i, GpbOpts),
     SourceDirsOpts = [{i, SourceDir} || SourceDir <- SourceDirs],
-    GpbRpcOpts = handle_opts(?OPT_KEYS, SourceDirsOpts ++ GpbRpcOpts0),
+    GpbRpcOpts = [
+        {module_name_suffix, ModuleNameSuffix} |
+        handle_opts(?OPT_KEYS, SourceDirsOpts ++ GpbRpcOpts0)
+    ],
 
     TargetErlDir0 = proplists:get_value(o_erl, GpbRpcOpts),
     TargetErlDir = filename:join([AppDir, TargetErlDir0]),
@@ -160,8 +164,6 @@ handle_opts([msg_prefix | OptKeys], Opts) ->
     handle_opts_do(msg_prefix, ?DEFAULT_MSG_PREFIX, OptKeys, Opts);
 handle_opts([mod_prefix | OptKeys], Opts) ->
     handle_opts_do(mod_prefix, ?DEFAULT_MOD_PREFIX, OptKeys, Opts);
-handle_opts([module_name_suffix | OptKeys], Opts) ->
-    handle_opts_do(module_name_suffix, ?DEFAULT_MODULE_SUFFIX, OptKeys, Opts);
 handle_opts([o_erl | OptKeys], Opts) ->
     handle_opts_do(o_erl, ?DEFAULT_OUT_ERL_DIR, OptKeys, Opts);
 handle_opts([o_hrl | OptKeys], Opts) ->
