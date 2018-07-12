@@ -88,14 +88,13 @@ compile(AppInfo) ->
 -spec clean(rebar_app_info:t()) -> ok.
 clean(AppInfo) ->
     AppDir = rebar_app_info:dir(AppInfo),
-    AppOutDir = rebar_app_info:out_dir(AppInfo),
     Opts = rebar_app_info:opts(AppInfo),
     {ok, GpbOpts} = dict:find(gpb_opts, Opts),
     {ok, GpbRpcOpts} = dict:find(gpb_rpc_opts, Opts),
-    TargetErlDir = filename:join([AppOutDir,
+    TargetErlDir = filename:join([AppDir,
         proplists:get_value(o_erl, GpbRpcOpts,
             ?DEFAULT_OUT_ERL_DIR)]),
-    TargetHrlDir = filename:join([AppOutDir,
+    TargetHrlDir = filename:join([AppDir,
         proplists:get_value(o_hrl, GpbRpcOpts,
             ?DEFAULT_OUT_HRL_DIR)]),
     ProtoFiles = find_proto_files(AppDir, GpbOpts),
