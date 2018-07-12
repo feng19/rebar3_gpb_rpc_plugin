@@ -213,7 +213,8 @@ update_erl_first_files(TargetErlDir, AppDir, AppInfo) ->
     case filelib:wildcard(filename:join(TargetErlDir, "*.erl")) of
         [] -> AppInfo;
         ErlFirstFiles0 ->
-            ErlFirstFiles = [string:prefix(AppDir, ErlFirstFile) || ErlFirstFile <- ErlFirstFiles0],
+            PrefixLen = length(AppDir),
+            ErlFirstFiles = [lists:nthtail(PrefixLen, ErlFirstFile) || ErlFirstFile <- ErlFirstFiles0],
             OldOpts = rebar_app_info:opts(AppInfo),
             NewOpts =
                 case dict:find(erl_first_files, OldOpts) of
