@@ -82,8 +82,8 @@ compile(AppInfo) ->
     compile_router(RouterFile, AppDir, TargetErlDir, GpbRpcOpts),
 
     AppInfo1 = update_include_files(TargetHrlDir0, AppInfo),
-    NewAppInfo = update_include_files(proplists:get_value(o_hrl, GpbOpts, "include"), AppInfo1),
-    update_erl_first_files(TargetErlDir0, NewAppInfo).
+    AppInfo2 = update_include_files(proplists:get_value(o_hrl, GpbOpts, "include"), AppInfo1),
+    update_erl_first_files(TargetErlDir, AppDir, AppInfo2).
 
 -spec clean(rebar_app_info:t()) -> ok.
 clean(AppInfo) ->
@@ -210,10 +210,11 @@ update_include_files(TargetHrlDir, AppInfo) ->
         end,
     rebar_app_info:opts(AppInfo, NewOpts).
 
-update_erl_first_files(TargetErlDir, AppInfo) ->
+update_erl_first_files(TargetErlDir, AppDir, AppInfo) ->
     case filelib:wildcard(filename:join(TargetErlDir, "*.erl")) of
         [] -> AppInfo;
-        ErlFirstFiles ->
+        ErlFirstFiles0 ->
+            ErlFirstFiles = [string:prefix(AppDir, ErlFirstFile) || ErlFirstFile <- ErlFirstFiles0],
             OldOpts = rebar_app_info:opts(AppInfo),
             NewOpts =
                 case dict:find(erl_first_files, OldOpts) of
