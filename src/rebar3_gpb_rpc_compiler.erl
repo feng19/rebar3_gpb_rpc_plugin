@@ -9,7 +9,8 @@
     recursive, msg_prefix, mod_prefix,
     o_erl, o_hrl, erl_tpl, hrl_tpl,
     router_erl_tpl, router_hrl_tpl,
-    router, cmd_bit, ccmd_bit
+    router, cmd_bit, ccmd_bit,
+    module_name_suffix
 ]).
 -define(DEFAULT_PROTO_DIR, "proto").
 -define(DEFAULT_OUT_ERL_DIR, "src/rpc").
