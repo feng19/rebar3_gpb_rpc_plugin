@@ -1,5 +1,5 @@
--ifndef({{proto_name_upper}}_H).
--define({{proto_name_upper}}_H, true).
+-ifndef({{file_upper}}_H).
+-define({{file_upper}}_H, true).
 
 {{#enums_list}}
 %% {{enum_name}}

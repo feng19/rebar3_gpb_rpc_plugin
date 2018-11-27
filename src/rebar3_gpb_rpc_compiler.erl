@@ -34,15 +34,11 @@ compile(AppInfo) ->
     AppDir = rebar_app_info:dir(AppInfo),
     Opts = rebar_app_info:opts(AppInfo),
     {ok, GpbOpts} = dict:find(gpb_opts, Opts),
-    ModuleNameSuffix = proplists:get_value(module_name_suffix, GpbOpts, ?DEFAULT_MODULE_SUFFIX),
 
     {ok, GpbRpcOpts0} = dict:find(gpb_rpc_opts, Opts),
     SourceDirs = proplists:get_all_values(i, GpbOpts),
     SourceDirsOpts = [{i, SourceDir} || SourceDir <- SourceDirs],
-    GpbRpcOpts = [
-        {module_name_suffix, ModuleNameSuffix} |
-        handle_opts(?OPT_KEYS, SourceDirsOpts ++ GpbRpcOpts0)
-    ],
+    GpbRpcOpts = handle_opts(?OPT_KEYS, SourceDirsOpts ++ GpbRpcOpts0),
 
     TargetErlDir0 = proplists:get_value(o_erl, GpbRpcOpts),
     TargetErlDir = filename:join([AppDir, TargetErlDir0]),
@@ -63,6 +59,8 @@ compile(AppInfo) ->
     "and \".hrl\" to ~p", [SourceDirs, TargetErlDir, TargetHrlDir]),
     rebar_api:debug("opts: ~p", [GpbRpcOpts]),
 
+    NewGpbOpts = remove_plugin_opts(default_include_opts(AppDir, GpbOpts)),
+
     %% check if non-recursive
     Recursive = proplists:get_value(recursive, GpbRpcOpts),
     [begin
@@ -73,13 +71,13 @@ compile(AppInfo) ->
                      true -> % skipped
                          ok;
                      _ ->
-                         compile(Source, Target, ErlTpl, HrlTpl, GpbRpcOpts, GpbOpts, Config)
+                         compile(Source, Target, ErlTpl, HrlTpl, GpbRpcOpts, NewGpbOpts, Config)
                  end
              end,
              [check_last_mod, {recursive, Recursive}])
      end || SourceDir <- SourceDirs],
 
-    compile_router(RouterFile, AppDir, TargetErlDir, GpbRpcOpts, GpbOpts),
+    compile_router(RouterFile, AppDir, TargetErlDir, GpbRpcOpts, NewGpbOpts),
 
     AppInfo1 = update_include_files(TargetHrlDir0, AppInfo),
     AppInfo2 = update_include_files(proplists:get_value(o_hrl, GpbOpts, "include"), AppInfo1),
@@ -127,7 +125,8 @@ compile(Source, _Target, ErlTpl, HrlTpl, GpbRpcOpts, GpbOpts, _Config) ->
 compile_router(RouterFile, AppDir, TargetErlDir, GpbRpcOpts, GpbOpts) ->
     filelib:is_file(RouterFile) orelse rebar_utils:abort("miss router ~s~n", [RouterFile]),
     RouterExt = filename:extension(RouterFile),
-    RouterErl0 = filename:basename(RouterFile, RouterExt) ++ ".erl",
+    RpcModuleNameSuffix = proplists:get_value(module_name_suffix, GpbRpcOpts),
+    RouterErl0 = filename:basename(RouterFile, RouterExt) ++ RpcModuleNameSuffix ++ ".erl",
     TargetErls0 = filelib:wildcard("*.erl", TargetErlDir),
     case lists:member(RouterErl0, TargetErls0) of
         true ->
@@ -225,3 +224,19 @@ update_erl_first_files(TargetErlDir, AppDir, AppInfo) ->
                 end,
             rebar_app_info:opts(AppInfo, NewOpts)
     end.
+
+-spec default_include_opts(string(), proplists:proplist()) -> proplists:proplist().
+default_include_opts(AppDir, Opts) ->
+    lists:map(
+        fun({i, Path}) ->
+            {i, filename:join(AppDir, Path)};
+            ({ipath, Path}) ->
+                {i, filename:join(AppDir, Path)};
+            (Opt) -> Opt
+        end, Opts).
+
+remove_plugin_opts(Opts) ->
+    lists:foldl(
+        fun(Key, Acc) ->
+            lists:keydelete(Key, 1, Acc)
+        end, Opts, [recursive, ipath]).
