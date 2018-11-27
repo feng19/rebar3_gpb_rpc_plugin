@@ -162,6 +162,8 @@ handle_opts([msg_prefix | OptKeys], Opts) ->
     handle_opts_do(msg_prefix, ?DEFAULT_MSG_PREFIX, OptKeys, Opts);
 handle_opts([mod_prefix | OptKeys], Opts) ->
     handle_opts_do(mod_prefix, ?DEFAULT_MOD_PREFIX, OptKeys, Opts);
+handle_opts([module_name_suffix | OptKeys], Opts) ->
+    handle_opts_do(module_name_suffix, ?DEFAULT_MODULE_SUFFIX, OptKeys, Opts);
 handle_opts([o_erl | OptKeys], Opts) ->
     handle_opts_do(o_erl, ?DEFAULT_OUT_ERL_DIR, OptKeys, Opts);
 handle_opts([o_hrl | OptKeys], Opts) ->
