@@ -1,8 +1,8 @@
 {"1.1.0",
-[{<<"gpb">>,{pkg,<<"gpb">>,<<"4.2.0">>},1},
- {<<"rebar3_gpb_plugin">>,{pkg,<<"rebar3_gpb_plugin">>,<<"2.3.0">>},0}]}.
+[{<<"gpb">>,{pkg,<<"gpb">>,<<"4.4.0">>},1},
+ {<<"rebar3_gpb_plugin">>,{pkg,<<"rebar3_gpb_plugin">>,<<"2.5.0">>},0}]}.
 [
 {pkg_hash,[
- {<<"gpb">>, <<"8482A89BD4BF01D2FA1F942E170B1452AD53B9C3A524BF0D51603444948F2461">>},
- {<<"rebar3_gpb_plugin">>, <<"D2D2D167D28340A97159030B7B4BE477D6140BB41F34CC832293FC4CADABBA09">>}]}
+ {<<"gpb">>, <<"CFD81B167F804B5A3720D7867530F6700E54644284431E4E14E032139C205251">>},
+ {<<"rebar3_gpb_plugin">>, <<"6D46E58CBAFA85C0D247B0FCC8F09791135960F556E88783E3FAEC60A6BD4FFD">>}]}
 ].

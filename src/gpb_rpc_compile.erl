@@ -19,11 +19,12 @@
 
 %% API
 -export([
-    gen_router/3,
-    file/4
+    gen_router/4,
+    file/5
 ]).
 
-gen_router(AppDir, RouterFile, GpbRpcOpts) ->
+gen_router(AppDir, RouterFile, GpbRpcOpts, GpbOpts0) ->
+    GpbOpts = remove_plugin_opts(GpbOpts0),
     RouterFile0 = filename:basename(RouterFile, ".proto"),
     ModuleNameSuffix = proplists:get_value(module_name_suffix, GpbRpcOpts),
     SourceDirs = proplists:lookup_all(i, GpbRpcOpts),
@@ -31,17 +32,20 @@ gen_router(AppDir, RouterFile, GpbRpcOpts) ->
     ModPrefix = proplists:get_value(mod_prefix, GpbRpcOpts),
     CCmdBit = proplists:get_value(ccmd_bit, GpbRpcOpts),
 
-    {ok, RouterDefines} = to_proto_defines(filename:join([AppDir, RouterFile]), SourceDirs),
+    {ok, RouterDefines} = to_proto_defines(filename:join([AppDir, RouterFile]), SourceDirs, GpbOpts),
     {_, RouterCmds} = hd([{EnumName, EnumList} || {{enum, EnumName}, EnumList} <- RouterDefines]),
+
+    IsSnakeCase = proplists:is_defined(msg_name_to_snake_case, GpbOpts),
 
     #{input_list := InputList0, output_list := OutputList0, router_cmd_list := RouterCmdList} = lists:foldl(
         fun({ModCmd, RouterCmd}, #{router_cmd_list := RouterCmdListT} = Acc) ->
             ProtoName = atom_to_list(ModCmd),
-            case find_proto_file(AppDir, ProtoName, SourceDirs) of
+            case find_proto_file(AppDir, ProtoName, SourceDirs, GpbOpts) of
                 [{_, Defines} | _] ->
                     RouterCmdTerm = [{cmd_name, ModCmd}, {cmd, RouterCmd}],
                     gen_router_do(ProtoName, RouterCmd, Defines, ModuleNameSuffix,
-                        PrefixLen, ModPrefix, CCmdBit, Acc#{router_cmd_list => [RouterCmdTerm | RouterCmdListT]});
+                        PrefixLen, ModPrefix, CCmdBit, IsSnakeCase,
+                        Acc#{router_cmd_list => [RouterCmdTerm | RouterCmdListT]});
                 false ->
                     rebar_utils:abort("router:~ts.proto have define ~p, but no find ~p.proto file",
                         [RouterFile0, ModCmd, ModCmd])
@@ -80,24 +84,33 @@ gen_router(AppDir, RouterFile, GpbRpcOpts) ->
     compile_tpl(HrlTarget, RouterHrlTplFile, HrlRenderData),
     ok.
 
-file(ProtoFile, ErlTpl, HrlTpl, GpbRpcOpts) ->
+file(ProtoFile, ErlTpl, HrlTpl, GpbRpcOpts, GpbOpts0) ->
+    GpbOpts = remove_plugin_opts(GpbOpts0),
     SourceDirs = proplists:lookup_all(i, GpbRpcOpts),
-    case to_proto_defines(ProtoFile, SourceDirs) of
+    case to_proto_defines(ProtoFile, SourceDirs, GpbOpts) of
         {ok, Defines} ->
             ProtoName = filename:rootname(filename:basename(ProtoFile)),
-            file(ProtoName, ErlTpl, HrlTpl, GpbRpcOpts, Defines);
+            file_do(ProtoName, ErlTpl, HrlTpl, GpbRpcOpts, Defines);
         Err -> Err
     end.
 
-file(ProtoName, ErlTpl, HrlTpl, GpbRpcOpts, Defines) ->
+file_do(ProtoName, ErlTpl, HrlTpl, GpbRpcOpts, Defines) ->
     TargetHrlDir = proplists:get_value(o_hrl, GpbRpcOpts),
     HrlTarget = filename:join([TargetHrlDir, ProtoName ++ ".hrl"]),
     ModuleNameSuffix = proplists:get_value(module_name_suffix, GpbRpcOpts),
 
     case {gen_mod(ProtoName, ModuleNameSuffix, Defines), gen_hrl(ProtoName, Defines)} of
+        {skip, skip} ->
+            rebar_api:debug("skipped gen gpb rpc & hrl : ~p", [ProtoName]);
         {skip, HrlRenderData} ->
             compile_tpl(HrlTarget, HrlTpl, HrlRenderData),
             rebar_api:debug("skipped gen gpb rpc : ~p", [ProtoName]);
+        {ErlRenderData, skip} ->
+            rebar_api:debug("skipped gen gpb rpc hrl: ~p", [ProtoName]),
+
+            TargetErlDir = proplists:get_value(o_erl, GpbRpcOpts),
+            ErlTarget = filename:join([TargetErlDir, ProtoName ++ ".erl"]),
+            compile_tpl(ErlTarget, ErlTpl, ErlRenderData);
         {ErlRenderData, HrlRenderData} ->
             compile_tpl(HrlTarget, HrlTpl, HrlRenderData),
 
@@ -111,11 +124,12 @@ compile_tpl(Target, Tpl, RenderData) ->
     IoData = bbmustache:compile(Tpl, RenderData, [{key_type, atom}]),
     ok = file:write_file(Target, [?AUTO_GEN_HEAD, IoData]).
 
--spec to_proto_defines(ProtoFile :: file:filename(), SourceDirs :: [file:filename()]) -> {ok, Defines :: tuple()}.
-to_proto_defines(ProtoFile, SourceDirs) ->
+-spec to_proto_defines(ProtoFile :: file:filename(), SourceDirs :: [file:filename()],
+    proplists:proplist()) -> {ok, Defines :: tuple()}.
+to_proto_defines(ProtoFile, SourceDirs, GpbOpts) ->
     {ok, Binary} = file:read_file(ProtoFile),
     String = binary_to_list(Binary),
-    gpb_compile:string(mod, String, [to_proto_defs | SourceDirs]).
+    gpb_compile:string(mod, String, [to_proto_defs | SourceDirs] ++ GpbOpts).
 
 gen_mod(ProtoName, ModuleNameSuffix, Defines) ->
     GpbProto = ProtoName ++ ModuleNameSuffix,
@@ -145,7 +159,7 @@ gen_mod(ProtoName, ModuleNameSuffix, Defines) ->
         false -> skip
     end.
 
-gen_router_do(ProtoName, RouterCmd, Defines, ModuleNameSuffix, PrefixLen, ModPrefix, CCmdBit, Acc0) ->
+gen_router_do(ProtoName, RouterCmd, Defines, ModuleNameSuffix, PrefixLen, ModPrefix, CCmdBit, IsSnakeCase, Acc0) ->
     Service = list_to_atom(ProtoName ++ "_service"),
     {_, RpcList} = lists:keyfind({service, Service}, 1, Defines),
     {_, CCmdList0} = hd([{EnumName, EnumList} || {{enum, EnumName}, EnumList} <- Defines]),
@@ -159,7 +173,17 @@ gen_router_do(ProtoName, RouterCmd, Defines, ModuleNameSuffix, PrefixLen, ModPre
         {gpb_proto, GpbProto},
         {handle_mod, HandleMod}
     ],
-    CCmdList = [{CCmdName, {CCmd, RouterCmd bsl CCmdBit + CCmd}} || {CCmdName, CCmd} <- CCmdList0],
+    CCmdList = [
+        begin
+            NewCCmdName =
+                case IsSnakeCase of
+                    true ->
+                        list_to_atom(gpb_lib:snake_case(atom_to_list(CCmdName)));
+                    _ -> CCmdName
+                end,
+            {NewCCmdName, {CCmd, RouterCmd bsl CCmdBit + CCmd}}
+        end || {CCmdName, CCmd} <- CCmdList0],
+
     lists:foldl(
         fun(Rpc, Acc) ->
             erl_rpc(Rpc, CCmdList, BaseData, Acc)
@@ -228,8 +252,22 @@ gen_hrl(ProtoName, Defines) ->
         {proto_name, ProtoName},
         {proto_name_upper, ProtoNameUpper}
     ],
-    EnumsList = [hrl_enums_list(EnumName, EnumList, BaseData) || {{enum, EnumName}, EnumList} <- Defines],
-    [{enums_list, EnumsList} | BaseData].
+    Service = list_to_atom(ProtoName ++ "_service"),
+    AllEnumList0 = [{EnumName, EnumList} || {{enum, EnumName}, EnumList} <- Defines],
+
+    AllEnumList =
+        case lists:keymember({service, Service}, 1, Defines) of
+            true ->
+                tl(AllEnumList0);
+            _ -> AllEnumList0
+        end,
+    case AllEnumList of
+        [] -> skip;
+        _ ->
+            EnumsList = [hrl_enums_list(EnumName, EnumList, BaseData)
+                || {EnumName, EnumList} <- AllEnumList],
+            [{enums_list, EnumsList} | BaseData]
+    end.
 hrl_enums_list(EnumName, EnumList0, BaseData0) ->
     EnumNameUpper = string:to_upper(atom_to_list(EnumName)),
     BaseData = [
@@ -253,15 +291,21 @@ add_is_last(List) ->
     [H | T] = lists:reverse(List),
     lists:reverse([[{is_last, true} | H] | T]).
 
-find_proto_file(AppDir, ProtoName, SourceDirs) ->
+find_proto_file(AppDir, ProtoName, SourceDirs, GpbOpts) ->
     lists:foldl(
         fun({i, SourceDir}, Acc) ->
             ProtoFile = filename:join([AppDir, SourceDir, ProtoName ++ ".proto"]),
             case filelib:is_file(ProtoFile) of
                 true ->
-                    {ok, Defines} = to_proto_defines(ProtoFile, SourceDirs),
+                    {ok, Defines} = to_proto_defines(ProtoFile, SourceDirs, GpbOpts),
                     [{ProtoName, Defines} | Acc];
                 false ->
                     Acc
             end
         end, [], SourceDirs).
+
+remove_plugin_opts(Opts) ->
+    lists:foldl(
+        fun(Key, Acc) ->
+            lists:keydelete(Key, 1, Acc)
+        end, Opts, [recursive, ipath]).

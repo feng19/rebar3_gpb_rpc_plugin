@@ -73,13 +73,13 @@ compile(AppInfo) ->
                      true -> % skipped
                          ok;
                      _ ->
-                         compile(Source, Target, ErlTpl, HrlTpl, GpbRpcOpts, Config)
+                         compile(Source, Target, ErlTpl, HrlTpl, GpbRpcOpts, GpbOpts, Config)
                  end
              end,
              [check_last_mod, {recursive, Recursive}])
      end || SourceDir <- SourceDirs],
 
-    compile_router(RouterFile, AppDir, TargetErlDir, GpbRpcOpts),
+    compile_router(RouterFile, AppDir, TargetErlDir, GpbRpcOpts, GpbOpts),
 
     AppInfo1 = update_include_files(TargetHrlDir0, AppInfo),
     AppInfo2 = update_include_files(proplists:get_value(o_hrl, GpbOpts, "include"), AppInfo1),
@@ -113,10 +113,10 @@ clean(AppInfo) ->
 %% ===================================================================
 %% Private API
 %% ===================================================================
--spec compile(string(), string(), string(), string(), proplists:proplist(), term()) -> ok.
-compile(Source, _Target, ErlTpl, HrlTpl, GpbRpcOpts, _Config) ->
+-spec compile(string(), string(), string(), string(), proplists:proplist(), proplists:proplist(), term()) -> ok.
+compile(Source, _Target, ErlTpl, HrlTpl, GpbRpcOpts, GpbOpts, _Config) ->
     rebar_api:debug("compiling ~p", [Source]),
-    case gpb_rpc_compile:file(Source, ErlTpl, HrlTpl, GpbRpcOpts) of
+    case gpb_rpc_compile:file(Source, ErlTpl, HrlTpl, GpbRpcOpts, GpbOpts) of
         ok ->
             ok;
         {error, Reason} ->
@@ -124,7 +124,7 @@ compile(Source, _Target, ErlTpl, HrlTpl, GpbRpcOpts, _Config) ->
             rebar_utils:abort("failed to compile ~s: ~s~n", [Source, ReasonStr])
     end.
 
-compile_router(RouterFile, AppDir, TargetErlDir, GpbRpcOpts) ->
+compile_router(RouterFile, AppDir, TargetErlDir, GpbRpcOpts, GpbOpts) ->
     filelib:is_file(RouterFile) orelse rebar_utils:abort("miss router ~s~n", [RouterFile]),
     RouterExt = filename:extension(RouterFile),
     RouterErl0 = filename:basename(RouterFile, RouterExt) ++ ".erl",
@@ -138,12 +138,12 @@ compile_router(RouterFile, AppDir, TargetErlDir, GpbRpcOpts) ->
                 || TargetErl <- [RouterFile | TargetErls]])),
             case filelib:last_modified(RouterErl) < Max of
                 true ->
-                    gpb_rpc_compile:gen_router(AppDir, RouterFile, GpbRpcOpts);
+                    gpb_rpc_compile:gen_router(AppDir, RouterFile, GpbRpcOpts, GpbOpts);
                 false ->
                     skipped
             end;
         false ->
-            gpb_rpc_compile:gen_router(AppDir, RouterFile, GpbRpcOpts)
+            gpb_rpc_compile:gen_router(AppDir, RouterFile, GpbRpcOpts, GpbOpts)
     end.
 
 -spec ensure_dir(filelib:dirname()) -> 'ok' | {error, Reason :: file:posix()}.
