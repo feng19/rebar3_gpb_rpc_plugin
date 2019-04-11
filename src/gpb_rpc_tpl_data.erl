@@ -152,7 +152,7 @@ erl_rpc(#?gpb_rpc{name = Func0, input = Input0, output = Output0}, CCmdList, Bas
             Acc#{
                 req_list => [ReqData | ReqList],
                 resp_list=> RespList,
-                resp_names => resp_names
+                resp_names => RespNames
             };
         false ->
             {OutputCCmd, OutputCmd} = proplists:get_value(Output0, CCmdList),
