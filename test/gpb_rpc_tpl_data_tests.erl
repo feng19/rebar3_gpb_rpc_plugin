@@ -1,151 +1,129 @@
 -module(gpb_rpc_tpl_data_tests).
 -include_lib("eunit/include/eunit.hrl").
 
-gen_router_test() ->
+gen_router_test_() ->
     meck:new(gpb_rpc_compile),
     MsgBaseString = msg_base_p2_string(),
     {ok, Defines} = gpb_compile:string(mod, MsgBaseString, [to_proto_defs]),
     meck:expect(gpb_rpc_compile, find_proto_file, 4, [{"msg_base", Defines}]),
 
     RouterFile = "msg",
+    ReqList = [
+        [
+            {cmd, 0},
+            {ccmd, 0},
+            {msg, "heartbeat_req"},
+            {msg_upper, "HEARTBEAT_REQ"},
+            {is_empty, true},
+            {handle_func, "heartbeat"},
+            {mod_cmd, 0},
+            {mod_cmd_name, "msg_base"},
+            {mod_cmd_name_upper, "MSG_BASE"},
+            {gpb_proto, "msg_base_pb"},
+            {handle_mod, "mod_base"}
+        ],
+        [
+            {is_last, true},
+            {cmd, 2},
+            {ccmd, 2},
+            {msg, "just_req"},
+            {msg_upper, "JUST_REQ"},
+            {is_empty, false},
+            {handle_func, "just_req"},
+            {mod_cmd, 0},
+            {mod_cmd_name, "msg_base"},
+            {mod_cmd_name_upper, "MSG_BASE"},
+            {gpb_proto, "msg_base_pb"},
+            {handle_mod, "mod_base"}
+        ]
+    ],
+    RespList = [
+        [
+            {is_last, true},
+            {cmd, 1},
+            {ccmd, 1},
+            {msg, "heartbeat_resp"},
+            {msg_upper, "HEARTBEAT_RESP"},
+            {is_empty, true},
+            {handle_func, "heartbeat"},
+            {mod_cmd, 0},
+            {mod_cmd_name, "msg_base"},
+            {mod_cmd_name_upper, "MSG_BASE"},
+            {gpb_proto, "msg_base_pb"},
+            {handle_mod, "mod_base"}
+        ]
+    ],
+    CmdList = [
+        [
+            {cmd, 0},
+            {ccmd, 0},
+            {msg, "heartbeat_req"},
+            {msg_upper, "HEARTBEAT_REQ"},
+            {is_empty, true},
+            {handle_func, "heartbeat"},
+            {mod_cmd, 0},
+            {mod_cmd_name, "msg_base"},
+            {mod_cmd_name_upper, "MSG_BASE"},
+            {gpb_proto, "msg_base_pb"},
+            {handle_mod, "mod_base"}
+        ],
+        [
+            {cmd, 1},
+            {ccmd, 1},
+            {msg, "heartbeat_resp"},
+            {msg_upper, "HEARTBEAT_RESP"},
+            {is_empty, true},
+            {handle_func, "heartbeat"},
+            {mod_cmd, 0},
+            {mod_cmd_name, "msg_base"},
+            {mod_cmd_name_upper, "MSG_BASE"},
+            {gpb_proto, "msg_base_pb"},
+            {handle_mod, "mod_base"}
+        ],
+        [
+            {is_last, true},
+            {cmd, 2},
+            {ccmd, 2},
+            {msg, "just_req"},
+            {msg_upper, "JUST_REQ"},
+            {is_empty, false},
+            {handle_func, "just_req"},
+            {mod_cmd, 0},
+            {mod_cmd_name, "msg_base"},
+            {mod_cmd_name_upper, "MSG_BASE"},
+            {gpb_proto, "msg_base_pb"},
+            {handle_mod, "mod_base"}
+
+        ]
+    ],
+
     ErlRenderData = [
         {file, "msg"},
         {file_upper, "MSG"},
-        {req_list, [
-            [
-                {cmd, 0},
-                {ccmd, 0},
-                {msg, "heartbeat_req"},
-                {msg_upper, "HEARTBEAT_REQ"},
-                {handle_func, "heartbeat"},
-                {mod_cmd, 0},
-                {mod_cmd_name, "msg_base"},
-                {mod_cmd_name_upper, "MSG_BASE"},
-                {gpb_proto, "msg_base_pb"},
-                {handle_mod, "mod_base"}
-            ],
-            [
-                {is_last, true},
-                {cmd, 0},
-                {ccmd, 0},
-                {msg, "heartbeat_req"},
-                {msg_upper, "HEARTBEAT_REQ"},
-                {handle_func, "heartbeat_1"},
-                {mod_cmd, 0},
-                {mod_cmd_name, "msg_base"},
-                {mod_cmd_name_upper, "MSG_BASE"},
-                {gpb_proto, "msg_base_pb"},
-                {handle_mod, "mod_base"}
-            ]
-        ]},
-        {resp_list, [
-            [
-                {is_last, true},
-                {cmd, 1},
-                {ccmd, 1},
-                {msg, "heartbeat_resp"},
-                {msg_upper, "HEARTBEAT_RESP"},
-                {handle_func, "heartbeat"},
-                {mod_cmd, 0},
-                {mod_cmd_name, "msg_base"},
-                {mod_cmd_name_upper, "MSG_BASE"},
-                {gpb_proto, "msg_base_pb"},
-                {handle_mod, "mod_base"}
-            ]
-        ]},
+        {req_list, ReqList},
+        {resp_list, RespList},
         {router_cmd_list, [[{is_last, true}, {cmd_name, msg_base}, {cmd, 0}]]},
-        {cmd_list, [
-            [
-                {cmd, 0},
-                {ccmd, 0},
-                {msg, "heartbeat_req"},
-                {msg_upper, "HEARTBEAT_REQ"},
-                {handle_func, "heartbeat"},
-                {mod_cmd, 0},
-                {mod_cmd_name, "msg_base"},
-                {mod_cmd_name_upper, "MSG_BASE"},
-                {gpb_proto, "msg_base_pb"},
-                {handle_mod, "mod_base"}
-            ],
-            [
-                {cmd, 0},
-                {ccmd, 0},
-                {msg, "heartbeat_req"},
-                {msg_upper, "HEARTBEAT_REQ"},
-                {handle_func, "heartbeat_1"},
-                {mod_cmd, 0},
-                {mod_cmd_name, "msg_base"},
-                {mod_cmd_name_upper, "MSG_BASE"},
-                {gpb_proto, "msg_base_pb"},
-                {handle_mod, "mod_base"}
-            ],
-            [
-                {is_last, true},
-                {cmd, 1},
-                {ccmd, 1},
-                {msg, "heartbeat_resp"},
-                {msg_upper, "HEARTBEAT_RESP"},
-                {handle_func, "heartbeat"},
-                {mod_cmd, 0},
-                {mod_cmd_name, "msg_base"},
-                {mod_cmd_name_upper, "MSG_BASE"},
-                {gpb_proto, "msg_base_pb"},
-                {handle_mod, "mod_base"}
-            ]
-        ]}
+        {cmd_list, CmdList}
     ],
     HrlRenderData = [
         {file, "msg"},
         {file_upper, "MSG"},
-        {cmd_list, [
-            [
-                {cmd, 0},
-                {ccmd, 0},
-                {msg, "heartbeat_req"},
-                {msg_upper, "HEARTBEAT_REQ"},
-                {handle_func, "heartbeat"},
-                {mod_cmd, 0},
-                {mod_cmd_name, "msg_base"},
-                {mod_cmd_name_upper, "MSG_BASE"},
-                {gpb_proto, "msg_base_pb"},
-                {handle_mod, "mod_base"}
-            ],
-            [
-                {cmd, 0},
-                {ccmd, 0},
-                {msg, "heartbeat_req"},
-                {msg_upper, "HEARTBEAT_REQ"},
-                {handle_func, "heartbeat_1"},
-                {mod_cmd, 0},
-                {mod_cmd_name, "msg_base"},
-                {mod_cmd_name_upper, "MSG_BASE"},
-                {gpb_proto, "msg_base_pb"},
-                {handle_mod, "mod_base"}
-            ],
-            [
-                {cmd, 1},
-                {ccmd, 1},
-                {msg, "heartbeat_resp"},
-                {msg_upper, "HEARTBEAT_RESP"},
-                {handle_func, "heartbeat"},
-                {mod_cmd, 0},
-                {mod_cmd_name, "msg_base"},
-                {mod_cmd_name_upper, "MSG_BASE"},
-                {gpb_proto, "msg_base_pb"},
-                {handle_mod, "mod_base"}
-            ]
-        ]},
+        {cmd_list, CmdList},
         {hrl_list, [[{hrl_name, "msg_base_pb"}]]}
     ],
-    ExpectData = {RouterFile, ErlRenderData, HrlRenderData},
 
     String = router_string(),
+    % {RouterFile, ErlRenderData, HrlRenderData} =
     RouterModData = router_mod_data(String),
     meck:unload(gpb_rpc_compile),
 
 %%    ?debugFmt("~p", [RouterModData]),
 
-    ?assertEqual(ExpectData, RouterModData).
+    [
+        ?_assertEqual(RouterFile, element(1, RouterModData)),
+        ?_assertEqual(ErlRenderData, element(2, RouterModData)),
+        ?_assertEqual(HrlRenderData, element(3, RouterModData))
+    ].
 
 no_service_test() ->
     String = "
@@ -173,8 +151,8 @@ gen_mod_test_() ->
             ],
             [
                 {gpb_proto, "msg_base_pb"},
-                {callback, "heartbeat_1"},
-                {req, "heartbeat_req"}
+                {callback, "just_req"},
+                {req, "just_req"}
             ]
         ]}
     ],
@@ -267,6 +245,7 @@ msg_base_p2_string() ->
 enum c_cmd{
     heartbeat_req   = 0;
     heartbeat_resp  = 1;
+    just_req        = 2;
 }
 
 enum fruit{
@@ -279,12 +258,15 @@ message undefined{}
 
 service msg_base_service{
     rpc heartbeat(heartbeat_req) returns (heartbeat_resp);
-    rpc heartbeat_1(heartbeat_req) returns (undefined);
+    rpc just_req(just_req) returns (undefined);
     rpc heartbeat_2(undefined) returns (heartbeat_resp);
 }
 
 message heartbeat_req{}
 message heartbeat_resp{}
+message just_req{
+    required uint64 id = 1;
+}
     ".
 
 msg_base_p3_string() ->
@@ -295,16 +277,20 @@ import \"google/protobuf/empty.proto\";
 enum c_cmd{
     heartbeat_req   = 0;
     heartbeat_resp  = 1;
+    just_req        = 2;
 }
 
 service msg_base_service{
     rpc heartbeat(heartbeat_req) returns (heartbeat_resp);
-    rpc heartbeat_1(heartbeat_req) returns (Empty);
+    rpc just_req(just_req) returns (Empty);
     rpc heartbeat_2(Empty) returns (heartbeat_resp);
 }
 
 message heartbeat_req{}
 message heartbeat_resp{}
+message just_req{
+    uint64 id = 1;
+}
     ".
 
 mod_file_data(String) ->

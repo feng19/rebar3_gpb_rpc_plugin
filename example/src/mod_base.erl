@@ -3,14 +3,13 @@
 %% API
 -export([
     heartbeat/2,
-    heartbeat_1/2
+    just_req/2
 ]).
 
--include("msg_base.hrl").
 -include("msg_base_pb.hrl").
 
 heartbeat(#heartbeat_req{}, _State) ->
     #{msg => #heartbeat_resp{}}.
 
-heartbeat_1(#heartbeat_req{}, _State) ->
+just_req(_JustReq, _State) ->
     #{}.

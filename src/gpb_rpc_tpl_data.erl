@@ -8,17 +8,18 @@
     hrl_file_data/4
 ]).
 
--define(MSG_DATA(Cmd, CCmd, Msg, MsgUpper, Func, BaseData),
+-define(MSG_DATA(Cmd, CCmd, Msg, MsgUpper, IsEmpty, Func, BaseData),
     [
         {cmd, Cmd}, {ccmd, CCmd},
         {msg, Msg}, {msg_upper, MsgUpper},
-        {handle_func, Func} | BaseData
+        {is_empty, IsEmpty}, {handle_func, Func} | BaseData
     ]).
 
 %%--------------------------------------------------------------------
 %% router_mod_data
 %%--------------------------------------------------------------------
 router_mod_data(AppDir, RouterFile, GpbRpcOpts, GpbOpts, RouterDefines) ->
+    rebar_api:debug("RouterFile:~ts, Defines:~n~p", [RouterFile, RouterDefines]),
     % fist enum is cmd defines
     {_, RouterCmds} = hd([{EnumName, EnumList} || {{enum, EnumName}, EnumList} <- RouterDefines]),
     SourceDirs = proplists:lookup_all(i, GpbRpcOpts),
@@ -36,6 +37,7 @@ router_mod_data(AppDir, RouterFile, GpbRpcOpts, GpbOpts, RouterDefines) ->
             ProtoName = atom_to_list(CmdName),
             case gpb_rpc_compile:find_proto_file(AppDir, ProtoName, SourceDirs, GpbOpts) of
                 [{_, Defines}] ->
+                    rebar_api:debug("ProtoFile:~ts.proto, Defines:~n~p", [ProtoName, Defines]),
                     RouterCmdTerm = [{cmd_name, CmdName}, {cmd, Cmd}],
                     router_mod_data_do(ProtoName, Cmd, Defines, RpcModuleNameSuffix, ModuleNameSuffix,
                         PrefixLen, ModPrefix, CCmdBit, IsSnakeCase,
@@ -50,7 +52,7 @@ router_mod_data(AppDir, RouterFile, GpbRpcOpts, GpbOpts, RouterDefines) ->
 
     ReqList = lists:reverse(ReqList0),
     RespList = lists:reverse(RespList0),
-    CmdList = lists:sort(ReqList ++ RespList),
+    CmdList = add_is_last(lists:sort(ReqList ++ RespList)),
 
     ErlRenderData = [
         {file, RouterFile0},
@@ -58,7 +60,7 @@ router_mod_data(AppDir, RouterFile, GpbRpcOpts, GpbOpts, RouterDefines) ->
         {req_list, add_is_last(ReqList)},
         {resp_list, add_is_last(RespList)},
         {router_cmd_list, add_is_last(lists:reverse(RouterCmdList))},
-        {cmd_list, add_is_last(CmdList)}
+        {cmd_list, CmdList}
     ],
 
     HrlRenderData = [
@@ -104,12 +106,12 @@ router_mod_data_do(ProtoName, RouterCmd, Defines, RpcModuleNameSuffix, ModuleNam
 
     lists:foldl(
         fun(Rpc, Acc) ->
-            erl_rpc(Rpc, CCmdList, BaseData, Acc)
+            erl_rpc(Rpc, CCmdList, BaseData, ProtoName, Defines, Acc)
         end, Acc0#{resp_names => []}, RpcList).
 
 %% Empty for proto3; undefined for proto2
-erl_rpc(#?gpb_rpc{name = Func0, input = Input, output = Output0}, CCmdList, BaseData, #{resp_names := RespNames} = Acc)
-    when (Input =:= 'Empty' orelse Input =:= undefined)
+erl_rpc(#?gpb_rpc{name = Func0, input = Input, output = Output0}, CCmdList, BaseData, ProtoName, Defines,
+    #{resp_names := RespNames} = Acc) when (Input =:= 'Empty' orelse Input =:= undefined)
     andalso Output0 =/= 'Empty' andalso Output0 =/= undefined ->
     Func = atom_to_list(Func0),
     Output = atom_to_list(Output0),
@@ -117,26 +119,48 @@ erl_rpc(#?gpb_rpc{name = Func0, input = Input, output = Output0}, CCmdList, Base
         true -> Acc;
         false ->
             #{resp_list := RespList, resp_names := RespNames} = Acc,
-            {CCmd, Cmd} = proplists:get_value(Output0, CCmdList),
+            {CCmd, Cmd} =
+                case proplists:get_value(Output0, CCmdList) of
+                    undefined ->
+                        rebar_utils:abort("Didn't define c_cmd: ~p in ~ts.proto file", [Output0, ProtoName]);
+                    R -> R
+                end,
             OutputUpper = string:to_upper(Output),
-            RespData = ?MSG_DATA(Cmd, CCmd, Output, OutputUpper, Func, BaseData),
+            IsEmpty =
+                case lists:keyfind({msg, Output0}, 1, Defines) of
+                    false ->
+                        rebar_utils:abort("Didn't define msg: ~p in ~ts.proto file", [Output0, ProtoName]);
+                    {_, Fields} -> Fields == []
+                end,
+            RespData = ?MSG_DATA(Cmd, CCmd, Output, OutputUpper, IsEmpty, Func, BaseData),
             Acc#{
                 resp_list => [RespData | RespList],
                 resp_names => [Output0 | RespNames]
             }
     end;
-erl_rpc(#?gpb_rpc{name = Func0, input = Input0, output = Output}, CCmdList, BaseData, #{req_list := ReqList} = Acc)
-    when (Output =:= 'Empty' orelse Output =:= undefined)
+erl_rpc(#?gpb_rpc{name = Func0, input = Input0, output = Output}, CCmdList, BaseData, ProtoName, Defines,
+    #{req_list := ReqList} = Acc) when (Output =:= 'Empty' orelse Output =:= undefined)
     andalso Input0 =/= 'Empty' andalso Input0 =/= undefined ->
     Func = atom_to_list(Func0),
     Input = atom_to_list(Input0),
     InputUpper = string:to_upper(Input),
-    {CCmd, Cmd} = proplists:get_value(Input0, CCmdList),
-    ReqData = ?MSG_DATA(Cmd, CCmd, Input, InputUpper, Func, BaseData),
+    {CCmd, Cmd} =
+        case proplists:get_value(Input0, CCmdList) of
+            undefined ->
+                rebar_utils:abort("Didn't define c_cmd: ~p in ~ts.proto file", [Input0, ProtoName]);
+            R -> R
+        end,
+    IsEmpty =
+        case lists:keyfind({msg, Input0}, 1, Defines) of
+            false ->
+                rebar_utils:abort("Didn't define msg: ~p in ~ts.proto file", [Input0, ProtoName]);
+            {_, Fields} -> Fields == []
+        end,
+    ReqData = ?MSG_DATA(Cmd, CCmd, Input, InputUpper, IsEmpty, Func, BaseData),
     Acc#{
         req_list => [ReqData | ReqList]
     };
-erl_rpc(#?gpb_rpc{name = Func0, input = Input0, output = Output0}, CCmdList, BaseData,
+erl_rpc(#?gpb_rpc{name = Func0, input = Input0, output = Output0}, CCmdList, BaseData, ProtoName, Defines,
     #{req_list := ReqList, resp_list := RespList, resp_names := RespNames} = Acc)
     when Input0 =/= 'Empty' andalso Input0 =/= undefined
     andalso Output0 =/= 'Empty' andalso Output0 =/= undefined ->
@@ -145,8 +169,19 @@ erl_rpc(#?gpb_rpc{name = Func0, input = Input0, output = Output0}, CCmdList, Bas
     InputUpper = string:to_upper(Input),
     Output = atom_to_list(Output0),
     OutputUpper = string:to_upper(Output),
-    {InputCCmd, InputCmd} = proplists:get_value(Input0, CCmdList),
-    ReqData = ?MSG_DATA(InputCmd, InputCCmd, Input, InputUpper, Func, BaseData),
+    {InputCCmd, InputCmd} =
+        case proplists:get_value(Input0, CCmdList) of
+            undefined ->
+                rebar_utils:abort("Didn't define c_cmd: ~p in ~ts.proto file", [Input0, ProtoName]);
+            InR -> InR
+        end,
+    InIsEmpty =
+        case lists:keyfind({msg, Input0}, 1, Defines) of
+            false ->
+                rebar_utils:abort("Didn't define msg: ~p in ~ts.proto file", [Input0, ProtoName]);
+            {_, InFields} -> InFields == []
+        end,
+    ReqData = ?MSG_DATA(InputCmd, InputCCmd, Input, InputUpper, InIsEmpty, Func, BaseData),
     case lists:member(Output0, RespNames) of
         true -> % already have resp
             Acc#{
@@ -155,8 +190,19 @@ erl_rpc(#?gpb_rpc{name = Func0, input = Input0, output = Output0}, CCmdList, Bas
                 resp_names => RespNames
             };
         false ->
-            {OutputCCmd, OutputCmd} = proplists:get_value(Output0, CCmdList),
-            RespData = ?MSG_DATA(OutputCmd, OutputCCmd, Output, OutputUpper, Func, BaseData),
+            {OutputCCmd, OutputCmd} =
+                case proplists:get_value(Output0, CCmdList) of
+                    undefined ->
+                        rebar_utils:abort("Didn't define c_cmd: ~p in ~ts.proto file", [Output0, ProtoName]);
+                    OutR -> OutR
+                end,
+            OutIsEmpty =
+                case lists:keyfind({msg, Output0}, 1, Defines) of
+                    false ->
+                        rebar_utils:abort("Didn't define msg: ~p in ~ts.proto file", [Output0, ProtoName]);
+                    {_, OutFields} -> OutFields == []
+                end,
+            RespData = ?MSG_DATA(OutputCmd, OutputCCmd, Output, OutputUpper, OutIsEmpty, Func, BaseData),
             Acc#{
                 req_list => [ReqData | ReqList],
                 resp_list => [RespData | RespList],

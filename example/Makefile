@@ -8,3 +8,6 @@ compile: include
 
 include:
 	mkdir include
+
+gen_proto:
+	rebar3 gpb_rpc compile
