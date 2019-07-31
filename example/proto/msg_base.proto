@@ -2,19 +2,19 @@ syntax = "proto3";
 import "google/protobuf/empty.proto";
 
 enum c_cmd{
-    heartbeat_req   = 0;
-    heartbeat_resp  = 1;
-    just_req        = 2;
+    HeartbeatReq   = 0;
+    HeartbeatResp  = 1;
+    JustReq        = 2;
 }
 
 service msg_base_service{
-    rpc heartbeat(heartbeat_req) returns (heartbeat_resp);
-    rpc just_req(just_req) returns (Empty);
-    rpc heartbeat_push(Empty) returns (heartbeat_resp);
+    rpc heartbeat(HeartbeatReq) returns (HeartbeatResp);
+    rpc just_req(JustReq) returns (Empty);
+    rpc heartbeat_push(Empty) returns (HeartbeatResp);
 }
 
-message heartbeat_req{}
-message just_req{
+message HeartbeatReq{}
+message JustReq{
     uint64 id = 1;
 }
-message heartbeat_resp{}
+message HeartbeatResp{}

@@ -111,8 +111,8 @@ router_mod_data_do(ProtoName, RouterCmd, Defines, RpcModuleNameSuffix, ModuleNam
 
 %% Empty for proto3; undefined for proto2
 erl_rpc(#?gpb_rpc{name = Func0, input = Input, output = Output0}, CCmdList, BaseData, ProtoName, Defines,
-    #{resp_names := RespNames} = Acc) when (Input =:= 'Empty' orelse Input =:= undefined)
-    andalso Output0 =/= 'Empty' andalso Output0 =/= undefined ->
+    #{resp_names := RespNames} = Acc) when (Input =:= 'Empty' orelse Input =:= empty orelse Input =:= undefined)
+    andalso Output0 =/= 'Empty' andalso Output0 =/= empty andalso Output0 =/= undefined ->
     Func = atom_to_list(Func0),
     Output = atom_to_list(Output0),
     case lists:member(Output0, RespNames) of
@@ -139,8 +139,8 @@ erl_rpc(#?gpb_rpc{name = Func0, input = Input, output = Output0}, CCmdList, Base
             }
     end;
 erl_rpc(#?gpb_rpc{name = Func0, input = Input0, output = Output}, CCmdList, BaseData, ProtoName, Defines,
-    #{req_list := ReqList} = Acc) when (Output =:= 'Empty' orelse Output =:= undefined)
-    andalso Input0 =/= 'Empty' andalso Input0 =/= undefined ->
+    #{req_list := ReqList} = Acc) when (Output =:= 'Empty' orelse Output =:= empty orelse Output =:= undefined)
+    andalso Input0 =/= 'Empty' andalso Input0 =/= empty andalso Input0 =/= undefined ->
     Func = atom_to_list(Func0),
     Input = atom_to_list(Input0),
     InputUpper = string:to_upper(Input),
@@ -162,8 +162,8 @@ erl_rpc(#?gpb_rpc{name = Func0, input = Input0, output = Output}, CCmdList, Base
     };
 erl_rpc(#?gpb_rpc{name = Func0, input = Input0, output = Output0}, CCmdList, BaseData, ProtoName, Defines,
     #{req_list := ReqList, resp_list := RespList, resp_names := RespNames} = Acc)
-    when Input0 =/= 'Empty' andalso Input0 =/= undefined
-    andalso Output0 =/= 'Empty' andalso Output0 =/= undefined ->
+    when Input0 =/= 'Empty' andalso Input0 =/= empty andalso Input0 =/= undefined
+    andalso Output0 =/= 'Empty' andalso Output0 =/= empty andalso Output0 =/= undefined ->
     Func = atom_to_list(Func0),
     Input = atom_to_list(Input0),
     InputUpper = string:to_upper(Input),
@@ -240,7 +240,7 @@ get_callback_list(server, GpbProto, RpcList) ->
              {req, Input}
          ]
      end || #?gpb_rpc{input = Input0, name = Func0} <- RpcList,
-        Input0 =/= 'Empty' andalso Input0 =/= undefined];
+        Input0 =/= 'Empty' andalso Input0 =/= empty andalso Input0 =/= undefined];
 get_callback_list(_, GpbProto, RpcList0) -> % client
     RpcList = lists:foldl(
         fun(#?gpb_rpc{output = Output} = Rpc, Acc) ->
@@ -258,7 +258,7 @@ get_callback_list(_, GpbProto, RpcList0) -> % client
              {resp, Output}
          ]
      end || #?gpb_rpc{output = Output0, name = Func0} <- lists:reverse(RpcList),
-        Output0 =/= 'Empty' andalso Output0 =/= undefined].
+        Output0 =/= 'Empty' andalso Output0 =/= empty andalso Output0 =/= undefined].
 
 %%--------------------------------------------------------------------
 %% hrl_file_data
