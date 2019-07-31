@@ -1,6 +1,7 @@
 Rebar3 gpb rpc plugin
 =====
 
+协议路由设计思路, 请看这篇文章: [游戏协议事件分发路由设计](https://feng19.github.io/2019/07/31/游戏协议事件分发路由设计/)
 原来 [gpb](https://github.com/tomas-abrahamsson/gpb) 编译出来的文件并没有实现`service`,但是项目需要使用到这个功能做为协议的路由定义,因此有了这个插件
 
 ## 应用场景
